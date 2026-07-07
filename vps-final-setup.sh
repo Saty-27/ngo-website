@@ -6,10 +6,13 @@ echo "🚀 Starting NGO Website VPS Final Setup..."
 # Navigate to project directory
 cd /var/www/ngo-website
 
-# Stop any existing PM2 processes
+# Stop any existing PM2 processes for this specific app
 echo "Stopping existing PM2 processes..."
-pm2 stop all
-pm2 delete all
+pm2 stop ngo-website 2>/dev/null || true
+pm2 delete ngo-website 2>/dev/null || true
+pm2 stop iskcon-juhu 2>/dev/null || true
+pm2 delete iskcon-juhu 2>/dev/null || true
+
 
 # Install dependencies
 echo "Installing dependencies..."
