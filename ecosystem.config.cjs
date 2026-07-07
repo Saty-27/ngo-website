@@ -1,11 +1,11 @@
 module.exports = {
   apps: [{
-    name: 'iskcon-juhu',
+    name: 'ngo-website',
     script: 'dist/index.js',
-    cwd: '/var/www/iskcon-juhu',
+    cwd: '/var/www/ngo-website',
     env: {
       NODE_ENV: 'production',
-      PORT: '8080'
+      PORT: '3000'
     },
     instances: 1,
     exec_mode: 'fork',

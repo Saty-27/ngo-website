@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# ISKCON Juhu VPS Final Setup Script
-echo "🚀 Starting ISKCON Juhu VPS Final Setup..."
+# NGO Website VPS Final Setup Script
+echo "🚀 Starting NGO Website VPS Final Setup..."
 
 # Navigate to project directory
-cd /var/www/iskcon-juhu
+cd /var/www/ngo-website
 
 # Stop any existing PM2 processes
 echo "Stopping existing PM2 processes..."
@@ -36,6 +36,6 @@ curl -I http://localhost:3000
 
 # Show final status
 echo "🎉 Setup complete!"
-echo "Your ISKCON Juhu system should now be running on port 3000"
+echo "Your NGO Website system should now be running on port 3000"
 echo "Access it at: http://YOUR_VPS_IP:3000"
 echo "Admin panel: http://YOUR_VPS_IP:3000/admin"
