@@ -106,11 +106,15 @@ const HeroSlider = () => {
   return (
     <section className="relative overflow-hidden h-[70vh] sm:h-[80vh] md:h-screen">
       {banners.length > 0 && banners[currentSlide] && (
-        <div className="h-full w-full absolute inset-0">
+        <a
+          href="https://ngosite.shop/donate"
+          className="h-full w-full absolute inset-0 block cursor-pointer"
+          aria-label="Donate Now"
+        >
           <img 
             src={isMobile && banners[currentSlide].mobileImageUrl ? banners[currentSlide].mobileImageUrl : banners[currentSlide].imageUrl} 
             alt={banners[currentSlide].title} 
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover object-top"
             loading="eager"
             decoding="async"
             onError={(e) => {
@@ -131,18 +135,20 @@ const HeroSlider = () => {
                     {banners[currentSlide].description}
                   </p>
                 )}
-                <div className="flex flex-wrap justify-center gap-3 sm:gap-4">
-                  {banners[currentSlide].buttonText && banners[currentSlide].buttonLink && (
-                    <Link href={banners[currentSlide].buttonLink} className="bg-orange-500 hover:bg-orange-600 text-white font-bold px-5 py-2 sm:px-6 sm:py-2 md:px-8 md:py-3 lg:px-10 lg:py-4 rounded-full 
-                        inline-block transition-all transform hover:-translate-y-1 text-xs sm:text-sm md:text-base lg:text-lg shadow-lg">
+                {banners[currentSlide].buttonText && banners[currentSlide].buttonLink && (
+                  <div className="flex flex-wrap justify-center gap-3 sm:gap-4">
+                    <span
+                      className="bg-orange-500 hover:bg-orange-600 text-white font-bold px-5 py-2 sm:px-6 sm:py-2 md:px-8 md:py-3 lg:px-10 lg:py-4 rounded-full 
+                          inline-block transition-all transform hover:-translate-y-1 text-xs sm:text-sm md:text-base lg:text-lg shadow-lg"
+                    >
                       {banners[currentSlide].buttonText}
-                    </Link>
-                  )}
-                </div>
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
-        </div>
+        </a>
       )}
 
       {/* Slider Navigation */}
@@ -151,7 +157,7 @@ const HeroSlider = () => {
           {banners.map((_, index) => (
             <button 
               key={index}
-              onClick={() => setCurrentSlide(index)}
+              onClick={(e) => { e.preventDefault(); setCurrentSlide(index); }}
               className={`w-2 h-2 sm:w-3 sm:h-3 lg:w-4 lg:h-4 rounded-full transition-all duration-300 ${
                 index === currentSlide 
                   ? 'bg-orange-500' 
