@@ -34,5 +34,8 @@ Thumbs.db
 *.sql
 cookies.txt
 uploads/
-attached_assets/
+attached_assets/*
+!attached_assets/Website FFC_20250531_190536_0000_1749327853462.png
+!attached_assets/process-desktop_1749457628105.png
+!attached_assets/process-mobile_1749457628106.png
 Iskcon-Juhu-Crm/
