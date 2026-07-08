@@ -120,7 +120,7 @@ const HeroSlider = () => {
               console.log('Image loaded successfully:', isMobile && banners[currentSlide].mobileImageUrl ? banners[currentSlide].mobileImageUrl : banners[currentSlide].imageUrl);
             }}
           />
-          <div className="absolute inset-0 bg-black bg-opacity-40 flex items-end justify-center pb-8 sm:pb-12 md:pb-16">
+          <div className="absolute inset-0 flex items-end justify-center pb-8 sm:pb-12 md:pb-16">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
               <div className="backdrop-blur-sm rounded-2xl p-4 sm:p-6 md:p-8 lg:p-12 max-w-full">
                 <h2 className="text-white font-bold text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl mb-3 sm:mb-4 md:mb-6 lg:mb-8 leading-tight drop-shadow-lg break-words">
