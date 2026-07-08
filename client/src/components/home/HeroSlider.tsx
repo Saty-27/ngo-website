@@ -64,8 +64,8 @@ const HeroSlider = () => {
   
   if (isLoading) {
     return (
-      <section className="relative overflow-hidden h-[70vh] sm:h-[80vh] md:h-screen">
-        <Skeleton className="w-full h-full" />
+      <section className="relative overflow-hidden w-full">
+        <Skeleton className="w-full" style={{ aspectRatio: isMobile ? '9/16' : '16/9' }} />
       </section>
     );
   }
@@ -73,48 +73,28 @@ const HeroSlider = () => {
   // Show fallback only if no banners exist and not loading
   if (banners.length === 0 && !isLoading) {
     return (
-      <section className="relative overflow-hidden h-[70vh] sm:h-[80vh] md:h-screen">
-        <div className="h-full w-full absolute inset-0">
-          <img 
-            src={iskconDeitiesImg} 
-            alt="Sri Sri Radha Rasabihari" 
-            className="w-full h-full object-cover"
-          />
-        </div>
-        <div className="absolute inset-0 z-20 flex items-end justify-center pb-8 sm:pb-12 md:pb-16">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <div className="bg-black bg-opacity-40 rounded-2xl p-4 sm:p-6 md:p-8 lg:p-12 backdrop-blur-sm max-w-full">
-              <h1 className="hero-heading text-4xl md:text-6xl lg:text-7xl font-bold font-poppins text-white mb-6 tracking-tight leading-tight drop-shadow-[0_4px_4px_rgba(0,0,0,0.4)]">
-                Welcome to Gauranitai Foundation
-              </h1>
-              <p className="text-white text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl mb-4 sm:mb-6 md:mb-8 lg:mb-10 max-w-xs sm:max-w-md md:max-w-2xl lg:max-w-4xl mx-auto leading-relaxed drop-shadow-lg">
-                Experience divine bliss at the spiritual heart of Mumbai
-              </p>
-              <div className="flex justify-center gap-3 sm:gap-4">
-                <Link href="/donate" className="bg-orange-500 hover:bg-orange-600 text-white font-bold px-5 py-2 sm:px-6 sm:py-2 md:px-8 md:py-3 lg:px-10 lg:py-4 rounded-full 
-                    inline-block transition-all transform hover:-translate-y-1 text-xs sm:text-sm md:text-base lg:text-lg shadow-lg">
-                  Donate Now
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
+      <section className="relative overflow-hidden w-full">
+        <img 
+          src={iskconDeitiesImg} 
+          alt="Sri Sri Radha Rasabihari" 
+          className="w-full block"
+        />
       </section>
     );
   }
   
   return (
-    <section className="relative overflow-hidden h-[70vh] sm:h-[80vh] md:h-screen">
+    <section className="relative overflow-hidden w-full">
       {banners.length > 0 && banners[currentSlide] && (
         <a
           href="https://ngosite.shop/donate"
-          className="h-full w-full absolute inset-0 block cursor-pointer"
+          className="w-full block cursor-pointer relative"
           aria-label="Donate Now"
         >
           <img 
             src={isMobile && banners[currentSlide].mobileImageUrl ? banners[currentSlide].mobileImageUrl : banners[currentSlide].imageUrl} 
             alt={banners[currentSlide].title} 
-            className="w-full h-full object-cover object-top"
+            className="w-full block"
             loading="eager"
             decoding="async"
             onError={(e) => {
@@ -124,23 +104,21 @@ const HeroSlider = () => {
               console.log('Image loaded successfully:', isMobile && banners[currentSlide].mobileImageUrl ? banners[currentSlide].mobileImageUrl : banners[currentSlide].imageUrl);
             }}
           />
+          {/* Text overlay */}
           <div className="absolute inset-0 flex items-end justify-center pb-8 sm:pb-12 md:pb-16">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
-              <div className="p-4 sm:p-6 md:p-8 lg:p-12 max-w-full">
-                <h2 className="text-white font-bold text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl mb-3 sm:mb-4 md:mb-6 lg:mb-8 leading-tight drop-shadow-lg break-words">
+              <div className="p-4 sm:p-6 md:p-8 max-w-full">
+                <h2 className="text-white font-bold text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl mb-3 sm:mb-4 md:mb-6 leading-tight drop-shadow-lg break-words">
                   {banners[currentSlide].title}
                 </h2>
                 {banners[currentSlide].description && (
-                  <p className="text-white text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl mb-4 sm:mb-6 md:mb-8 lg:mb-10 max-w-xs sm:max-w-md md:max-w-2xl lg:max-w-4xl mx-auto leading-relaxed drop-shadow-lg break-words">
+                  <p className="text-white text-sm sm:text-base md:text-lg lg:text-xl mb-4 sm:mb-6 max-w-xs sm:max-w-md md:max-w-2xl mx-auto leading-relaxed drop-shadow-lg break-words">
                     {banners[currentSlide].description}
                   </p>
                 )}
                 {banners[currentSlide].buttonText && banners[currentSlide].buttonLink && (
                   <div className="flex flex-wrap justify-center gap-3 sm:gap-4">
-                    <span
-                      className="bg-orange-500 hover:bg-orange-600 text-white font-bold px-5 py-2 sm:px-6 sm:py-2 md:px-8 md:py-3 lg:px-10 lg:py-4 rounded-full 
-                          inline-block transition-all transform hover:-translate-y-1 text-xs sm:text-sm md:text-base lg:text-lg shadow-lg"
-                    >
+                    <span className="bg-orange-500 hover:bg-orange-600 text-white font-bold px-5 py-2 sm:px-6 sm:py-2 md:px-8 md:py-3 rounded-full inline-block transition-all transform hover:-translate-y-1 text-xs sm:text-sm md:text-base shadow-lg">
                       {banners[currentSlide].buttonText}
                     </span>
                   </div>
@@ -153,12 +131,12 @@ const HeroSlider = () => {
 
       {/* Slider Navigation */}
       {banners.length > 1 && (
-        <div className="absolute bottom-4 sm:bottom-6 lg:bottom-8 left-0 right-0 z-30 flex justify-center space-x-2 sm:space-x-3">
+        <div className="absolute bottom-4 sm:bottom-6 left-0 right-0 z-30 flex justify-center space-x-2 sm:space-x-3">
           {banners.map((_, index) => (
             <button 
               key={index}
               onClick={(e) => { e.preventDefault(); setCurrentSlide(index); }}
-              className={`w-2 h-2 sm:w-3 sm:h-3 lg:w-4 lg:h-4 rounded-full transition-all duration-300 ${
+              className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full transition-all duration-300 ${
                 index === currentSlide 
                   ? 'bg-orange-500' 
                   : 'bg-white bg-opacity-60 hover:bg-opacity-80'
