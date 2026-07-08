@@ -132,15 +132,10 @@ const HeroSlider = () => {
                   </p>
                 )}
                 <div className="flex flex-wrap justify-center gap-3 sm:gap-4">
-                  {banners[currentSlide].buttonText && banners[currentSlide].buttonLink ? (
+                  {banners[currentSlide].buttonText && banners[currentSlide].buttonLink && (
                     <Link href={banners[currentSlide].buttonLink} className="bg-orange-500 hover:bg-orange-600 text-white font-bold px-5 py-2 sm:px-6 sm:py-2 md:px-8 md:py-3 lg:px-10 lg:py-4 rounded-full 
                         inline-block transition-all transform hover:-translate-y-1 text-xs sm:text-sm md:text-base lg:text-lg shadow-lg">
                       {banners[currentSlide].buttonText}
-                    </Link>
-                  ) : (
-                    <Link href="/donate" className="bg-orange-500 hover:bg-orange-600 text-white font-bold px-5 py-2 sm:px-6 sm:py-2 md:px-8 md:py-3 lg:px-10 lg:py-4 rounded-full 
-                        inline-block transition-all transform hover:-translate-y-1 text-xs sm:text-sm md:text-base lg:text-lg shadow-lg">
-                      Donate Now
                     </Link>
                   )}
                 </div>
