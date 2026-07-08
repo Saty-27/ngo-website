@@ -5,7 +5,7 @@ module.exports = {
     cwd: '/var/www/ngo-website',
     env: {
       NODE_ENV: 'production',
-      PORT: '3000'
+      PORT: '3100'
     },
     instances: 1,
     exec_mode: 'fork',
