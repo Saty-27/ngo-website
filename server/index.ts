@@ -8,7 +8,8 @@ import paymentRoutes from "./routes/payment";
 import receiptRoutes from "./routes/receipt";
 import { validatePaymentConfig } from "./paymentConfig";
 import { initializeStatsAndSchedules } from "./initializeData";
-import { initializeBlogData } from "./initializeBlogData";
+import { initializeBlogData, initializePolicies } from "./initializeBlogData";
+import { initializeNgoTables } from "./initializeNgoTables";
 
 const app = express();
 app.use(express.json());
@@ -67,6 +68,12 @@ app.use((req, res, next) => {
   
   // Initialize blog data
   await initializeBlogData();
+  
+  // Initialize NGO tables
+  await initializeNgoTables();
+  
+  // Initialize policies
+  await initializePolicies();
   
   // Admin user creation is handled by createDefaultAdmin() function above
   

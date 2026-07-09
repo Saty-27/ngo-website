@@ -263,8 +263,10 @@ export const contactMessages = pgTable("contact_messages", {
   name: text("name").notNull(),
   email: text("email").notNull(),
   phone: text("phone"),
-  subject: text("subject").notNull(),
-  message: text("message").notNull(),
+  subject: text("subject"),
+  message: text("message"),
+  query: text("query"),
+  aboutSectionId: integer("about_section_id"),
   isRead: boolean("is_read").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -308,6 +310,9 @@ export const campaigns = pgTable("campaigns", {
   isFeatured: boolean("is_featured").default(false),
   showOnHomepage: boolean("show_on_homepage").default(true),
   donationCategoryId: integer("donation_category_id").references(() => donationCategories.id),
+  ngoId: integer("ngo_id").references(() => ngos.id),
+  approvalStatus: text("approval_status").default("approved").notNull(), // pending, approved, rejected
+  adminRemarks: text("admin_remarks"),
   upiId: text("upi_id"),
   bankAccountHolder: text("bank_account_holder"),
   bankAccountNumber: text("bank_account_number"),
@@ -353,6 +358,7 @@ export const donations = pgTable("donations", {
   categoryId: integer("category_id").references(() => donationCategories.id),
   eventId: integer("event_id").references(() => events.id),
   campaignId: integer("campaign_id").references(() => campaigns.id),
+  ngoId: integer("ngo_id").references(() => ngos.id),
   amount: integer("amount").notNull(),
   amountType: text("amount_type").default("preset").notNull(), // preset, custom
   name: text("name").notNull(),
@@ -765,3 +771,198 @@ export const insertReceiptSettingsSchema = createInsertSchema(receiptSettings).o
   createdAt: true,
   updatedAt: true,
 });
+
+// ============================================================
+// NGO REGISTRATION SYSTEM
+// ============================================================
+
+// NGOs table - stores all NGO registration details
+export const ngos = pgTable("ngos", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  logo: text("logo"),
+  registrationNumber: text("registration_number").notNull().unique(),
+  registrationCertificate: text("registration_certificate"),
+  website: text("website"),
+  email: text("email").notNull().unique(),
+  phone: text("phone").notNull(),
+  alternatePhone: text("alternate_phone"),
+  address: text("address").notNull(),
+  city: text("city").notNull(),
+  state: text("state").notNull(),
+  country: text("country").notNull().default("India"),
+  pincode: text("pincode").notNull(),
+  // Authorized person
+  authorizedPersonName: text("authorized_person_name"),
+  authorizedPersonDesignation: text("authorized_person_designation"),
+  authorizedPersonPhone: text("authorized_person_phone"),
+  authorizedPersonEmail: text("authorized_person_email"),
+  // Bank details
+  accountHolderName: text("account_holder_name"),
+  bankName: text("bank_name"),
+  accountNumber: text("account_number"),
+  ifscCode: text("ifsc_code"),
+  branchName: text("branch_name"),
+  upiId: text("upi_id"),
+  qrCode: text("qr_code"),
+  // NGO description
+  about: text("about"),
+  mission: text("mission"),
+  vision: text("vision"),
+  establishedYear: integer("established_year"),
+  totalVolunteers: integer("total_volunteers"),
+  totalBeneficiaries: integer("total_beneficiaries"),
+  // Social media
+  facebook: text("facebook"),
+  twitter: text("twitter"),
+  instagram: text("instagram"),
+  youtube: text("youtube"),
+  linkedin: text("linkedin"),
+  // Status
+  status: text("status").notNull().default("pending"), // pending, approved, rejected, suspended
+  rejectionReason: text("rejection_reason"),
+  approvedAt: timestamp("approved_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type Ngo = typeof ngos.$inferSelect;
+export type InsertNgo = typeof ngos.$inferInsert;
+export const insertNgoSchema = createInsertSchema(ngos).omit({
+  id: true,
+  status: true,
+  rejectionReason: true,
+  approvedAt: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// NGO Users table - login accounts for NGO staff
+export const ngoUsers = pgTable("ngo_users", {
+  id: serial("id").primaryKey(),
+  ngoId: integer("ngo_id").references(() => ngos.id, { onDelete: "cascade" }).notNull(),
+  name: text("name").notNull(),
+  email: text("email").notNull().unique(),
+  password: text("password").notNull(),
+  plainPassword: text("plain_password"), // stored for admin visibility only
+  designation: text("designation"),
+  phone: text("phone"),
+  role: text("role").notNull().default("ngo_admin"),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type NgoUser = typeof ngoUsers.$inferSelect;
+export type InsertNgoUser = typeof ngoUsers.$inferInsert;
+export const insertNgoUserSchema = createInsertSchema(ngoUsers).omit({
+  id: true,
+  createdAt: true,
+});
+
+// NGO Campaigns table - campaigns submitted by NGOs pending admin approval
+export const ngoCampaigns = pgTable("ngo_campaigns", {
+  id: serial("id").primaryKey(),
+  ngoId: integer("ngo_id").references(() => ngos.id, { onDelete: "cascade" }).notNull(),
+  title: text("title").notNull(),
+  slug: text("slug").unique(),
+  shortDescription: text("short_description"),
+  description: text("description"),
+  goalAmount: integer("goal_amount").notNull(),
+  raisedAmount: integer("raised_amount").default(0).notNull(),
+  coverImage: text("cover_image").notNull(),
+  galleryImages: json("gallery_images"),
+  category: text("category"),
+  startDate: timestamp("start_date"),
+  endDate: timestamp("end_date"),
+  beneficiaryDetails: text("beneficiary_details"),
+  approvalStatus: text("approval_status").notNull().default("pending"), // pending, approved, rejected
+  adminRemarks: text("admin_remarks"),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type NgoCampaign = typeof ngoCampaigns.$inferSelect;
+export type InsertNgoCampaign = typeof ngoCampaigns.$inferInsert;
+export const insertNgoCampaignSchema = createInsertSchema(ngoCampaigns).omit({
+  id: true,
+  raisedAmount: true,
+  approvalStatus: true,
+  adminRemarks: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  startDate: z.union([z.string(), z.date()]).optional().transform((val) =>
+    val ? (typeof val === "string" ? new Date(val) : val) : undefined
+  ),
+  endDate: z.union([z.string(), z.date()]).optional().transform((val) =>
+    val ? (typeof val === "string" ? new Date(val) : val) : undefined
+  ),
+});
+
+// NGO Donation Amount Cards - quick-select donation amounts per NGO campaign
+export const ngoDonationAmountCards = pgTable("ngo_donation_amount_cards", {
+  id: serial("id").primaryKey(),
+  ngoCampaignId: integer("ngo_campaign_id").references(() => ngoCampaigns.id, { onDelete: "cascade" }).notNull(),
+  amount: integer("amount").notNull(),
+  label: text("label"),
+  displayOrder: integer("display_order").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type NgoDonationAmountCard = typeof ngoDonationAmountCards.$inferSelect;
+export type InsertNgoDonationAmountCard = typeof ngoDonationAmountCards.$inferInsert;
+export const insertNgoDonationAmountCardSchema = createInsertSchema(ngoDonationAmountCards).omit({
+  id: true,
+  createdAt: true,
+});
+
+// About Sections Table
+export const aboutSections = pgTable("about_sections", {
+  id: serial("id").primaryKey(),
+  sectionNumber: integer("section_number").notNull().unique(),
+  title: text("title").notNull(),
+  description: text("description"),
+  imageUrl: text("image_url"),
+  icon: text("icon"),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type AboutSection = typeof aboutSections.$inferSelect;
+export type InsertAboutSection = typeof aboutSections.$inferInsert;
+
+export const insertAboutSectionSchema = createInsertSchema(aboutSections).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Contact Info Table
+export const contactInfo = pgTable("contact_info", {
+  id: serial("id").primaryKey(),
+  locationEmbed: text("location_embed"), // Google Maps embed iframe or URL
+  visitingHoursOffice: text("visiting_hours_office"),
+  visitingHoursSaturday: text("visiting_hours_saturday"),
+  visitingHoursSunday: text("visiting_hours_sunday"),
+  visitingHoursSpecial: text("visiting_hours_special"),
+  gettingHereTrain: text("getting_here_train"),
+  gettingHereBus: text("getting_here_bus"),
+  gettingHereTaxi: text("getting_here_taxi"),
+  gettingHereCar: text("getting_here_car"),
+  gettingHereAirport: text("getting_here_airport"),
+  guidelines: text("guidelines"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type ContactInfo = typeof contactInfo.$inferSelect;
+export type InsertContactInfo = typeof contactInfo.$inferInsert;
+
+export const insertContactInfoSchema = createInsertSchema(contactInfo).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+

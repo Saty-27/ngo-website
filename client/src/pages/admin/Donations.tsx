@@ -804,19 +804,62 @@ const DonationsPage = () => {
                 </div>
 
                 {/* Proof & Rejection Details */}
-                {selectedDonation.paymentProofFile && (
-                  <div className="bg-orange-50 rounded-2xl p-5 border border-orange-200">
-                    <label className="text-xs font-semibold text-orange-600 uppercase tracking-wide block mb-2">Payment Confirmation Proof</label>
-                    <a 
-                      href={selectedDonation.paymentProofFile} 
-                      target="_blank" 
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 text-sm text-secondary hover:underline font-semibold"
-                    >
-                      View Uploaded Document (Image/PDF)
-                    </a>
-                  </div>
-                )}
+                {selectedDonation.paymentProofFile && (() => {
+                  const proofUrl = selectedDonation.paymentProofFile!;
+                  const isPdf = proofUrl.toLowerCase().endsWith('.pdf');
+                  const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(proofUrl);
+                  return (
+                    <div className="bg-orange-50 rounded-2xl p-5 border border-orange-200 space-y-3">
+                      <label className="text-xs font-semibold text-orange-600 uppercase tracking-wide block">📎 Payment Confirmation Proof</label>
+                      {isImage ? (
+                        <div className="relative rounded-xl overflow-hidden border border-orange-200 bg-white">
+                          <img
+                            src={proofUrl}
+                            alt="Payment Proof"
+                            className="w-full max-h-64 object-contain"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                            }}
+                          />
+                          <a
+                            href={proofUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="absolute bottom-2 right-2 bg-primary text-white text-xs px-3 py-1.5 rounded-lg hover:bg-primary/90 font-semibold flex items-center gap-1"
+                          >
+                            🔍 Open Full Image
+                          </a>
+                        </div>
+                      ) : isPdf ? (
+                        <div className="flex items-center gap-4 bg-white rounded-xl p-4 border border-orange-200">
+                          <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                            <FileText className="w-7 h-7 text-red-600" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-gray-800">PDF Receipt / Document</p>
+                            <a
+                              href={proofUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-xs text-blue-600 hover:underline font-medium"
+                            >
+                              📄 Open / Download PDF
+                            </a>
+                          </div>
+                        </div>
+                      ) : (
+                        <a
+                          href={proofUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 text-sm text-secondary hover:underline font-semibold"
+                        >
+                          View Uploaded Document (Image/PDF)
+                        </a>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {selectedDonation.status === 'rejected' && selectedDonation.rejectionReason && (
                   <div className="bg-red-50 rounded-2xl p-5 border border-red-200">

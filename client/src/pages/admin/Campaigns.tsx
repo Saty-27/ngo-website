@@ -232,41 +232,78 @@ export default function AdminCampaigns() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {campaigns.map((campaign) => {
               const isNew = campaign.id === newCampaignId;
+              const c = campaign as any;
               return (
                 <Card
                   key={campaign.id}
-                  className={`border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 ${
-                    isNew
+                  className={`border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden ${isNew
                       ? 'ring-2 ring-green-500 ring-offset-2 animate-pulse bg-green-50'
                       : ''
-                  }`}
+                    }`}
                 >
-                  <CardHeader className="pb-4">
-                    <div className="flex justify-between items-start gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        {isNew && (
-                          <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-green-500 text-white">
-                            <CheckCircle2 className="w-3 h-3" /> New
-                          </span>
-                        )}
-                        <CardTitle className="text-lg font-bold font-poppins text-primary line-clamp-1">
+                  {/* Campaign Cover Image */}
+                  {c.coverImage && (
+                    <div className="h-36 w-full overflow-hidden relative">
+                      <img
+                        src={c.coverImage}
+                        alt={campaign.title}
+                        className="w-full h-full object-cover"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                      <div className="absolute bottom-2 left-3 right-3 flex items-end justify-between">
+                        <h3 className="text-white font-bold font-poppins text-base line-clamp-1 drop-shadow">
                           {campaign.title}
-                        </CardTitle>
+                        </h3>
+                        <Badge
+                          className={`capitalize font-semibold shrink-0 text-xs ${campaign.status === 'active'
+                              ? 'bg-green-500 text-white'
+                              : campaign.status === 'draft'
+                                ? 'bg-yellow-500 text-white'
+                                : 'bg-red-500 text-white'
+                            }`}
+                        >
+                          {campaign.status}
+                        </Badge>
                       </div>
-                      <Badge
-                        className={`capitalize font-semibold shrink-0 ${
-                          campaign.status === 'active'
-                            ? 'bg-green-100 text-green-800'
-                            : campaign.status === 'draft'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}
-                      >
-                        {campaign.status}
-                      </Badge>
+                      {isNew && (
+                        <span className="absolute top-2 left-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-green-500 text-white">
+                          <CheckCircle2 className="w-3 h-3" /> New
+                        </span>
+                      )}
                     </div>
+                  )}
+
+                  <CardHeader className={`pb-2 ${c.coverImage ? 'pt-3' : 'pb-4'}`}>
+                    {!c.coverImage && (
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          {isNew && (
+                            <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-green-500 text-white">
+                              <CheckCircle2 className="w-3 h-3" /> New
+                            </span>
+                          )}
+                          <CardTitle className="text-lg font-bold font-poppins text-primary line-clamp-1">
+                            {campaign.title}
+                          </CardTitle>
+                        </div>
+                        <Badge
+                          className={`capitalize font-semibold shrink-0 ${campaign.status === 'active'
+                              ? 'bg-green-100 text-green-800'
+                              : campaign.status === 'draft'
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : 'bg-red-100 text-red-800'
+                            }`}
+                        >
+                          {campaign.status}
+                        </Badge>
+                      </div>
+                    )}
+                    {c.shortDescription && (
+                      <p className="text-xs text-gray-500 font-opensans line-clamp-2 mt-1">{c.shortDescription}</p>
+                    )}
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="space-y-4 pt-0">
                     <div className="grid grid-cols-3 gap-2 text-xs font-opensans text-primary">
                       <div>
                         <span className="text-gray-400 block">Goal</span>
@@ -281,6 +318,15 @@ export default function AdminCampaigns() {
                         <strong className="font-semibold text-sm">{campaign.donorCount}</strong>
                       </div>
                     </div>
+                    {/* Progress bar */}
+                    {campaign.goalAmount && (
+                      <div className="w-full bg-gray-100 rounded-full h-1.5">
+                        <div
+                          className="bg-secondary h-1.5 rounded-full transition-all"
+                          style={{ width: `${Math.min(Math.round((campaign.totalRaised / Number(campaign.goalAmount)) * 100), 100)}%` }}
+                        />
+                      </div>
+                    )}
                     <div className="flex justify-end gap-2 pt-2 border-t">
                       <Button
                         variant="outline"

@@ -128,6 +128,7 @@ export default function AdminCampaignManagement() {
   // Preset card form
   const [newCardAmount, setNewCardAmount] = useState('');
   const [newCardLabel, setNewCardLabel] = useState('');
+  const [newCardDescription, setNewCardDescription] = useState('');
 
   // Donation review states
   const [rejectionReason, setRejectionReason] = useState('');
@@ -239,6 +240,7 @@ export default function AdminCampaignManagement() {
       toast({ title: 'Success', description: 'Donation card added successfully' });
       setNewCardAmount('');
       setNewCardLabel('');
+      setNewCardDescription('');
     },
     onError: () => {
       toast({ title: 'Error', description: 'Failed to add preset card', variant: 'destructive' });
@@ -364,7 +366,14 @@ export default function AdminCampaignManagement() {
     addCardMutation.mutate({
       amount: parseInt(newCardAmount),
       label: newCardLabel || null,
+      description: newCardDescription || null,
     });
+  };
+
+  const handleCardSuccess = () => {
+    setNewCardAmount('');
+    setNewCardLabel('');
+    setNewCardDescription('');
   };
 
   const handleApprove = (id: number) => {
@@ -393,7 +402,7 @@ export default function AdminCampaignManagement() {
     <AdminLayout>
       <div className="p-6 max-w-5xl mx-auto space-y-6">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={() => setLocation('/admin/campaigns')} className="p-2">
+          <Button variant="ghost" onClick={() => window.history.back()} className="p-2">
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div>
@@ -657,22 +666,63 @@ export default function AdminCampaignManagement() {
 
           {/* TAB 3: PRESET CARDS */}
           <TabsContent value="cards" className="pt-4">
+            {/* Campaign Header */}
+            {campaign && (
+              <div className="flex items-center gap-4 mb-5 p-4 bg-orange-50 border border-orange-200 rounded-xl">
+                {(campaign as any).coverImage ? (
+                  <img
+                    src={(campaign as any).coverImage}
+                    alt={(campaign as any).title}
+                    className="w-16 h-16 rounded-xl object-cover border border-orange-200 shadow-sm flex-shrink-0"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  />
+                ) : (
+                  <div className="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <DollarSign className="w-8 h-8 text-primary" />
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <p className="text-xs text-gray-500 uppercase font-semibold">Campaign</p>
+                  <h3 className="font-bold text-primary font-poppins text-lg leading-tight line-clamp-1">{(campaign as any).title}</h3>
+                  {(campaign as any).shortDescription && (
+                    <p className="text-xs text-gray-500 line-clamp-1">{(campaign as any).shortDescription}</p>
+                  )}
+                  <p className="text-xs text-secondary font-semibold mt-0.5">Goal: ₹{Number((campaign as any).goalAmount).toLocaleString()}</p>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Left Column: Create Preset Card */}
               <Card className="border-gray-200">
                 <CardHeader>
                   <CardTitle className="font-poppins text-lg text-primary">Add Donation Card</CardTitle>
-                  <CardDescription>Define a preset suggestion amount.</CardDescription>
+                  <CardDescription>Define a preset suggestion amount for donors to quickly select.</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <form onSubmit={handleAddCard} className="space-y-4">
                     <div className="grid gap-2">
                       <Label htmlFor="card-amount" className="text-primary font-semibold">Card Amount (₹) *</Label>
-                      <Input id="card-amount" type="number" value={newCardAmount} onChange={(e) => setNewCardAmount(e.target.value)} placeholder="501" />
+                      <Input id="card-amount" type="number" value={newCardAmount} onChange={(e) => setNewCardAmount(e.target.value)} placeholder="e.g. 501" />
                     </div>
                     <div className="grid gap-2">
-                      <Label htmlFor="card-label" className="text-primary font-semibold">Label (Optional)</Label>
-                      <Input id="card-label" value={newCardLabel} onChange={(e) => setNewCardLabel(e.target.value)} placeholder="e.g. Support a child for a week" />
+                      <Label htmlFor="card-label" className="text-primary font-semibold">Card Name / Title *</Label>
+                      <Input
+                        id="card-label"
+                        value={newCardLabel}
+                        onChange={(e) => setNewCardLabel(e.target.value)}
+                        placeholder="e.g. Feed a Family for a Day"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="card-desc" className="text-primary font-semibold">Description / Benefit <span className="text-gray-400 font-normal">(Optional)</span></Label>
+                      <Textarea
+                        id="card-desc"
+                        value={newCardDescription}
+                        onChange={(e) => setNewCardDescription(e.target.value)}
+                        placeholder="What will this donation help achieve? e.g. Provides prasadam to 10 devotees"
+                        rows={3}
+                      />
                     </div>
                     <Button type="submit" className="w-full bg-primary hover:bg-opacity-95 text-white flex items-center justify-center gap-1.5">
                       <Plus className="w-4 h-4" /> Add Preset Card
@@ -683,29 +733,53 @@ export default function AdminCampaignManagement() {
 
               {/* Right Column: Existing Cards List */}
               <div className="md:col-span-2 space-y-4">
-                <h3 className="text-lg font-bold font-poppins text-primary">Predefined Suggestion Cards</h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-bold font-poppins text-primary">Predefined Suggestion Cards</h3>
+                  <span className="text-sm text-gray-400">{cards.length} card{cards.length !== 1 ? 's' : ''}</span>
+                </div>
                 {cards.length === 0 ? (
                   <Card className="border-gray-200 bg-neutral/30">
                     <CardContent className="py-8 text-center text-gray-500 text-sm">
-                      No suggestion cards defined. Donors will have to enter custom amounts.
+                      No suggestion cards defined yet. Add cards using the form on the left.
                     </CardContent>
                   </Card>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {cards.map((card) => (
-                      <Card key={card.id} className="border-gray-200 shadow-sm relative pr-12">
-                        <CardHeader className="p-4">
-                          <CardTitle className="text-xl font-bold font-poppins text-primary">₹{card.amount}</CardTitle>
-                          {card.label && <p className="text-xs text-gray-500 font-opensans">{card.label}</p>}
+                      <Card key={card.id} className="border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                        <CardHeader className="p-4 pb-2">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-baseline gap-2 flex-wrap">
+                                <CardTitle className="text-2xl font-bold font-poppins text-primary">₹{Number(card.amount).toLocaleString()}</CardTitle>
+                                {card.label && (
+                                  <span className="text-xs font-semibold text-secondary bg-orange-50 px-2 py-0.5 rounded-full border border-orange-100">
+                                    {card.label}
+                                  </span>
+                                )}
+                              </div>
+                              {(card as any).description && (
+                                <p className="text-xs text-gray-500 font-opensans mt-1.5 leading-relaxed">{(card as any).description}</p>
+                              )}
+                            </div>
+                            <Button
+                              onClick={() => deleteCardMutation.mutate(card.id)}
+                              variant="ghost"
+                              size="sm"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50 shrink-0 ml-2"
+                              title="Delete card"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </CardHeader>
-                        <Button 
-                          onClick={() => deleteCardMutation.mutate(card.id)}
-                          variant="ghost" 
-                          size="sm" 
-                          className="absolute right-2 top-4 text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        <CardContent className="px-4 pb-4 pt-1">
+                          <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                            <span>Donation Amount Card</span>
+                            <span>·</span>
+                            <span>Click to show on campaign page</span>
+                          </div>
+                        </CardContent>
                       </Card>
                     ))}
                   </div>
@@ -751,16 +825,33 @@ export default function AdminCampaignManagement() {
                               {format(new Date(d.createdAt), 'dd MMM yyyy, hh:mm a')}
                             </td>
                             <td className="py-4 px-2 text-center">
-                              {d.paymentProofFile ? (
-                                <a 
-                                  href={d.paymentProofFile} 
-                                  target="_blank" 
-                                  rel="noreferrer" 
-                                  className="inline-flex items-center gap-1 text-xs text-secondary hover:underline font-semibold"
-                                >
-                                  View Proof
-                                </a>
-                              ) : (
+                              {d.paymentProofFile ? (() => {
+                                const proofUrl = d.paymentProofFile;
+                                const isImg = /\.(jpg|jpeg|png|gif|webp)$/i.test(proofUrl);
+                                const isPdf = proofUrl.toLowerCase().endsWith('.pdf');
+                                return (
+                                  <div className="flex flex-col items-center gap-1">
+                                    {isImg && (
+                                      <a href={proofUrl} target="_blank" rel="noreferrer">
+                                        <img
+                                          src={proofUrl}
+                                          alt="Proof"
+                                          className="w-12 h-12 object-cover rounded-lg border border-gray-200 hover:opacity-80 transition-opacity"
+                                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                        />
+                                      </a>
+                                    )}
+                                    <a
+                                      href={proofUrl}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="inline-flex items-center gap-1 text-xs text-secondary hover:underline font-semibold"
+                                    >
+                                      {isPdf ? '📄 PDF' : isImg ? '🔍 View' : 'View Proof'}
+                                    </a>
+                                  </div>
+                                );
+                              })() : (
                                 <span className="text-xs text-gray-400">None</span>
                               )}
                             </td>

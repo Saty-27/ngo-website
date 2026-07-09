@@ -30,7 +30,13 @@ import {
   insertPoliciesPageSchema,
   insertCampaignSchema,
   insertDonationAmountCardSchema,
-  insertStatSchema
+  insertStatSchema,
+  insertNgoSchema,
+  insertNgoUserSchema,
+  insertNgoCampaignSchema,
+  insertNgoDonationAmountCardSchema,
+  insertAboutSectionSchema,
+  insertContactInfoSchema
 } from "@shared/schema";
 
 import express from "express";
@@ -2856,6 +2862,966 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============================================================
+  // NGO REGISTRATION SYSTEM ROUTES
+  // ============================================================
+
+  // NGO uploads directory setup
+  const ngoDir = path.join(uploadsDir, 'ngo');
+  if (!fs.existsSync(ngoDir)) fs.mkdirSync(ngoDir, { recursive: true });
+
+  const ngoUpload = multer({
+    storage: multer.diskStorage({
+      destination: (req, file, cb) => cb(null, ngoDir),
+      filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+        cb(null, 'ngo-' + uniqueSuffix + path.extname(file.originalname));
+      }
+    }),
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+    fileFilter: (req, file, cb) => {
+      const mime = file.mimetype;
+      if (mime.startsWith('image/') || mime === 'application/pdf') cb(null, true);
+      else cb(new Error('Only images and PDFs are allowed'));
+    }
+  });
+  app.use('/uploads/ngo', express.static(ngoDir));
+
+  // ---- NGO Auth ----
+
+  // POST /api/ngo/register - Public NGO registration
+  app.post('/api/ngo/register', ngoUpload.fields([
+    { name: 'logo', maxCount: 1 },
+    { name: 'registrationCertificate', maxCount: 1 },
+    { name: 'qrCode', maxCount: 1 }
+  ]), async (req, res) => {
+    try {
+      const files = req.files as Record<string, Express.Multer.File[]>;
+      const body = req.body;
+
+      const { db: dbInstance } = await import('./db.js');
+      const { ngos: ngosTable } = await import('@shared/schema');
+      const { eq, or } = await import('drizzle-orm');
+
+      // Check for duplicate email or registration number
+      const existingNgo = await dbInstance.query.ngos?.findFirst({
+        where: (ngos) => or(
+          eq(ngos.email, body.email),
+          eq(ngos.registrationNumber, body.registrationNumber)
+        )
+      }).catch(() => null);
+
+      if (existingNgo) {
+        return res.status(409).json({ message: "An NGO with this email or registration number already exists" });
+      }
+
+      const logoUrl = files?.logo?.[0] ? `/uploads/ngo/${files.logo[0].filename}` : null;
+      const certUrl = files?.registrationCertificate?.[0] ? `/uploads/ngo/${files.registrationCertificate[0].filename}` : null;
+      const qrUrl = files?.qrCode?.[0] ? `/uploads/ngo/${files.qrCode[0].filename}` : null;
+
+      const [ngo] = await dbInstance.insert(ngosTable).values({
+        name: body.name,
+        logo: logoUrl,
+        registrationNumber: body.registrationNumber,
+        registrationCertificate: certUrl,
+        website: body.website || null,
+        email: body.email,
+        phone: body.phone,
+        alternatePhone: body.alternatePhone || null,
+        address: body.address,
+        city: body.city,
+        state: body.state,
+        country: body.country || 'India',
+        pincode: body.pincode,
+        authorizedPersonName: body.authorizedPersonName || null,
+        authorizedPersonDesignation: body.authorizedPersonDesignation || null,
+        authorizedPersonPhone: body.authorizedPersonPhone || null,
+        authorizedPersonEmail: body.authorizedPersonEmail || null,
+        accountHolderName: body.accountHolderName || null,
+        bankName: body.bankName || null,
+        accountNumber: body.accountNumber || null,
+        ifscCode: body.ifscCode || null,
+        branchName: body.branchName || null,
+        upiId: body.upiId || null,
+        qrCode: qrUrl,
+        about: body.about || null,
+        mission: body.mission || null,
+        vision: body.vision || null,
+        establishedYear: body.establishedYear ? parseInt(body.establishedYear) : null,
+        totalVolunteers: body.totalVolunteers ? parseInt(body.totalVolunteers) : null,
+        totalBeneficiaries: body.totalBeneficiaries ? parseInt(body.totalBeneficiaries) : null,
+        facebook: body.facebook || null,
+        twitter: body.twitter || null,
+        instagram: body.instagram || null,
+        youtube: body.youtube || null,
+        linkedin: body.linkedin || null,
+        status: 'pending',
+      }).returning();
+
+      // Create NGO user account with hashed password
+      if (body.password) {
+        const bcrypt = require('bcrypt');
+        const hashedPassword = await bcrypt.hash(body.password, 10);
+        const { ngoUsers: ngoUsersTable } = await import('@shared/schema');
+        await dbInstance.insert(ngoUsersTable).values({
+          ngoId: ngo.id,
+          name: body.authorizedPersonName || body.name,
+          email: body.email,
+          password: hashedPassword,
+          plainPassword: body.password, // store original for admin visibility
+          designation: body.authorizedPersonDesignation || null,
+          phone: body.authorizedPersonPhone || body.phone,
+          role: 'ngo_admin',
+        });
+      }
+
+      res.status(201).json({
+        message: "NGO registration submitted successfully. Pending admin approval.",
+        ngoId: ngo.id,
+      });
+    } catch (error) {
+      console.error('NGO registration error:', error);
+      res.status(500).json({ message: "Registration failed", error: String(error) });
+    }
+  });
+
+  // POST /api/ngo/login - NGO Login
+  app.post('/api/ngo/login', async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email and password required" });
+      }
+
+      const { db: dbInstance } = await import('./db.js');
+      const { ngoUsers: ngoUsersTable, ngos: ngosTable } = await import('@shared/schema');
+      const { eq } = await import('drizzle-orm');
+
+      const user = await dbInstance.query.ngoUsers?.findFirst({
+        where: eq(ngoUsersTable.email, email),
+      });
+
+      if (!user) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+
+      const bcrypt = require('bcrypt');
+      const valid = await bcrypt.compare(password, user.password);
+      if (!valid) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+
+      if (!user.isActive) {
+        return res.status(403).json({ message: "Account is inactive" });
+      }
+
+      // Get NGO details
+      const ngo = await dbInstance.query.ngos?.findFirst({
+        where: eq(ngosTable.id, user.ngoId),
+      });
+
+      if (!ngo) {
+        return res.status(404).json({ message: "NGO not found" });
+      }
+
+      if (ngo.status !== 'approved') {
+        return res.status(403).json({ 
+          message: "Your NGO registration is " + ngo.status + ". Please wait for admin approval.",
+          status: ngo.status
+        });
+      }
+
+      const token = jwt.sign(
+        { ngoUserId: user.id, ngoId: user.ngoId, role: 'ngo_admin' },
+        JWT_SECRET,
+        { expiresIn: '7d' }
+      );
+
+      res.json({
+        token,
+        user: { id: user.id, name: user.name, email: user.email, role: user.role },
+        ngo: { id: ngo.id, name: ngo.name, logo: ngo.logo, status: ngo.status }
+      });
+    } catch (error) {
+      console.error('NGO login error:', error);
+      res.status(500).json({ message: "Login failed", error: String(error) });
+    }
+  });
+
+  // NGO auth middleware
+  const isNgoAuthenticated = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith('Bearer ')) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    const token = authHeader.substring(7);
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET) as { ngoUserId: number; ngoId: number; role: string };
+      (req as any).ngoUserId = decoded.ngoUserId;
+      (req as any).ngoId = decoded.ngoId;
+      next();
+    } catch {
+      return res.status(401).json({ message: "Invalid token" });
+    }
+  };
+
+  // GET /api/ngo/me - Get current NGO profile
+  app.get('/api/ngo/me', isNgoAuthenticated, async (req, res) => {
+    try {
+      const { db: dbInstance } = await import('./db.js');
+      const { ngos: ngosTable } = await import('@shared/schema');
+      const { eq } = await import('drizzle-orm');
+      const ngoId = (req as any).ngoId;
+      const ngo = await dbInstance.query.ngos?.findFirst({ where: eq(ngosTable.id, ngoId) });
+      if (!ngo) return res.status(404).json({ message: "NGO not found" });
+      res.json(ngo);
+    } catch (error) {
+      res.status(500).json({ message: "Error fetching profile", error: String(error) });
+    }
+  });
+
+  // PUT /api/ngo/me - Update NGO profile
+  app.put('/api/ngo/me', isNgoAuthenticated, ngoUpload.fields([
+    { name: 'logo', maxCount: 1 },
+    { name: 'qrCode', maxCount: 1 }
+  ]), async (req, res) => {
+    try {
+      const { db: dbInstance } = await import('./db.js');
+      const { ngos: ngosTable } = await import('@shared/schema');
+      const { eq } = await import('drizzle-orm');
+      const ngoId = (req as any).ngoId;
+      const files = req.files as Record<string, Express.Multer.File[]>;
+      const body = req.body;
+      const updateData: any = {
+        name: body.name,
+        website: body.website,
+        phone: body.phone,
+        alternatePhone: body.alternatePhone,
+        address: body.address,
+        city: body.city,
+        state: body.state,
+        pincode: body.pincode,
+        about: body.about,
+        mission: body.mission,
+        vision: body.vision,
+        accountHolderName: body.accountHolderName,
+        bankName: body.bankName,
+        accountNumber: body.accountNumber,
+        ifscCode: body.ifscCode,
+        branchName: body.branchName,
+        upiId: body.upiId,
+        facebook: body.facebook,
+        twitter: body.twitter,
+        instagram: body.instagram,
+        youtube: body.youtube,
+        linkedin: body.linkedin,
+        updatedAt: new Date(),
+      };
+      if (files?.logo?.[0]) updateData.logo = `/uploads/ngo/${files.logo[0].filename}`;
+      if (files?.qrCode?.[0]) updateData.qrCode = `/uploads/ngo/${files.qrCode[0].filename}`;
+
+      const [updated] = await dbInstance.update(ngosTable).set(updateData).where(eq(ngosTable.id, ngoId)).returning();
+      res.json({ message: "Profile updated", ngo: updated });
+    } catch (error) {
+      res.status(500).json({ message: "Error updating profile", error: String(error) });
+    }
+  });
+
+  // ---- NGO Dashboard ----
+
+  // GET /api/ngo/dashboard - Stats
+  app.get('/api/ngo/dashboard', isNgoAuthenticated, async (req, res) => {
+    try {
+      const { db: dbInstance } = await import('./db.js');
+      const { campaigns: campaignsTable, donations: donationsTable } = await import('@shared/schema');
+      const { eq, and, count, sum, inArray } = await import('drizzle-orm');
+      const ngoId = (req as any).ngoId;
+
+      // Query unified campaigns table filtered by ngoId
+      const ngoCampaigns = await dbInstance.select().from(campaignsTable).where(eq(campaignsTable.ngoId, ngoId));
+      const totalCampaigns = ngoCampaigns.length;
+      const activeCampaigns = ngoCampaigns.filter(c => c.status === 'active' && c.approvalStatus === 'approved').length;
+      const pendingCampaigns = ngoCampaigns.filter(c => c.approvalStatus === 'pending').length;
+      const rejectedCampaigns = ngoCampaigns.filter(c => c.approvalStatus === 'rejected').length;
+
+      // Get donation stats for campaigns belonging to this NGO
+      const campaignIds = ngoCampaigns.map(c => c.id);
+      let totalDonations = 0;
+      let totalAmountRaised = 0;
+      if (campaignIds.length > 0) {
+        const donationStats = await dbInstance.select({
+          totalDonors: count(),
+          totalAmount: sum(donationsTable.amount),
+        }).from(donationsTable).where(
+          and(
+            inArray(donationsTable.campaignId, campaignIds),
+            eq(donationsTable.status, 'approved')
+          )
+        );
+        totalDonations = Number(donationStats[0]?.totalDonors || 0);
+        totalAmountRaised = Number(donationStats[0]?.totalAmount || 0);
+      }
+
+      res.json({
+        totalCampaigns,
+        activeCampaigns,
+        pendingCampaigns,
+        rejectedCampaigns,
+        totalDonations,
+        totalAmountRaised,
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Error fetching dashboard", error: String(error) });
+    }
+  });
+
+  // GET /api/ngo/campaigns - NGO's own campaigns
+  app.get('/api/ngo/campaigns', isNgoAuthenticated, async (req, res) => {
+    try {
+      const { db: dbInstance } = await import('./db.js');
+      const { campaigns: campaignsTable } = await import('@shared/schema');
+      const { eq, desc } = await import('drizzle-orm');
+      const ngoId = (req as any).ngoId;
+      const ngoCampaigns = await dbInstance.select().from(campaignsTable)
+        .where(eq(campaignsTable.ngoId, ngoId))
+        .orderBy(desc(campaignsTable.createdAt));
+      res.json(ngoCampaigns);
+    } catch (error) {
+      res.status(500).json({ message: "Error fetching campaigns", error: String(error) });
+    }
+  });
+
+  // POST /api/ngo/campaigns - Create campaign (into unified campaigns table)
+  app.post('/api/ngo/campaigns', isNgoAuthenticated, upload.single('coverImage'), async (req, res) => {
+    try {
+      const { db: dbInstance } = await import('./db.js');
+      const { campaigns: campaignsTable } = await import('@shared/schema');
+      const ngoId = (req as any).ngoId;
+      const body = req.body;
+      const coverImage = req.file ? `/uploads/${req.file.filename}` : body.coverImage;
+      console.log("POST /api/ngo/campaigns debug:", { body, file: req.file, coverImage });
+      if (!coverImage) return res.status(400).json({ message: "Cover image is required" });
+
+      const slug = body.title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') + '-' + Date.now();
+
+      const [campaign] = await dbInstance.insert(campaignsTable).values({
+        ngoId,
+        title: body.title,
+        slug,
+        shortDescription: body.shortDescription || null,
+        description: body.description || null,
+        goalAmount: parseInt(body.goalAmount),
+        coverImage,
+        startDate: body.startDate ? new Date(body.startDate) : null,
+        endDate: body.endDate ? new Date(body.endDate) : null,
+        status: 'draft',
+        approvalStatus: 'pending',
+        allowCustomAmount: body.allowCustomAmount === 'true' || body.allowCustomAmount === true,
+        showOnHomepage: false,
+        isFeatured: false,
+        displayOrder: 999,
+        bankAccountHolder: body.bankAccountHolder || null,
+        bankAccountNumber: body.bankAccountNumber || null,
+        bankIfsc: body.bankIfsc || null,
+        bankName: body.bankName || null,
+        bankBranch: body.bankBranch || null,
+        upiId: body.upiId || null,
+        qrCodeImage: body.qrCodeImage || null,
+      }).returning();
+
+      // Create preset donation amount cards if provided
+      if (body.presetAmounts) {
+        const { donationAmountCards } = await import('@shared/schema');
+        const amounts = typeof body.presetAmounts === 'string' ? JSON.parse(body.presetAmounts) : body.presetAmounts;
+        if (Array.isArray(amounts)) {
+          for (const amt of amounts) {
+            await dbInstance.insert(donationAmountCards).values({
+              campaignId: campaign.id,
+              amount: parseInt(amt.amount || amt),
+              label: amt.label || `₹${amt.amount || amt}`,
+            });
+          }
+        }
+      }
+
+      res.status(201).json({ message: "Campaign submitted for review", campaign });
+    } catch (error) {
+      res.status(500).json({ message: "Error creating campaign", error: String(error) });
+    }
+  });
+
+  // PUT /api/ngo/campaigns/:id - Edit own campaign (only if pending or rejected)
+  app.put('/api/ngo/campaigns/:id', isNgoAuthenticated, upload.single('coverImage'), async (req, res) => {
+    try {
+      const { db: dbInstance } = await import('./db.js');
+      const { campaigns: campaignsTable } = await import('@shared/schema');
+      const { eq, and } = await import('drizzle-orm');
+      const ngoId = (req as any).ngoId;
+      const id = parseInt(req.params.id);
+      const body = req.body;
+
+      const updateData: any = {
+        title: body.title,
+        shortDescription: body.shortDescription,
+        description: body.description,
+        goalAmount: parseInt(body.goalAmount),
+        startDate: body.startDate ? new Date(body.startDate) : null,
+        endDate: body.endDate ? new Date(body.endDate) : null,
+        approvalStatus: 'pending', // reset to pending on edit
+        adminRemarks: null,
+        status: 'draft',
+        updatedAt: new Date(),
+        bankAccountHolder: body.bankAccountHolder || null,
+        bankAccountNumber: body.bankAccountNumber || null,
+        bankIfsc: body.bankIfsc || null,
+        bankName: body.bankName || null,
+        bankBranch: body.bankBranch || null,
+        upiId: body.upiId || null,
+        qrCodeImage: body.qrCodeImage || null,
+      };
+      if (body.allowCustomAmount !== undefined) {
+        updateData.allowCustomAmount = body.allowCustomAmount === 'true' || body.allowCustomAmount === true;
+      }
+      if (req.file) {
+        updateData.coverImage = `/uploads/${req.file.filename}`;
+      } else if (body.coverImage) {
+        updateData.coverImage = body.coverImage;
+      }
+
+      const [updated] = await dbInstance.update(campaignsTable)
+        .set(updateData)
+        .where(and(eq(campaignsTable.id, id), eq(campaignsTable.ngoId, ngoId)))
+        .returning();
+
+      if (!updated) return res.status(404).json({ message: "Campaign not found" });
+      res.json({ message: "Campaign updated and resubmitted for review", campaign: updated });
+    } catch (error) {
+      res.status(500).json({ message: "Error updating campaign", error: String(error) });
+    }
+  });
+
+  // DELETE /api/ngo/campaigns/:id
+  app.delete('/api/ngo/campaigns/:id', isNgoAuthenticated, async (req, res) => {
+    try {
+      const { db: dbInstance } = await import('./db.js');
+      const { campaigns: campaignsTable } = await import('@shared/schema');
+      const { eq, and } = await import('drizzle-orm');
+      const ngoId = (req as any).ngoId;
+      const id = parseInt(req.params.id);
+      await dbInstance.delete(campaignsTable)
+        .where(and(eq(campaignsTable.id, id), eq(campaignsTable.ngoId, ngoId)));
+      res.json({ message: "Campaign deleted" });
+    } catch (error) {
+      res.status(500).json({ message: "Error deleting campaign", error: String(error) });
+    }
+  });
+
+  // GET /api/ngo/donations - NGO's donations (via campaigns they own)
+  app.get('/api/ngo/donations', isNgoAuthenticated, async (req, res) => {
+    try {
+      const { db: dbInstance } = await import('./db.js');
+      const { donations: donationsTable, campaigns: campaignsTable } = await import('@shared/schema');
+      const { eq, desc, inArray } = await import('drizzle-orm');
+      const ngoId = (req as any).ngoId;
+
+      // Get all campaign IDs belonging to this NGO
+      const ngoCampaigns = await dbInstance.select({ id: campaignsTable.id }).from(campaignsTable).where(eq(campaignsTable.ngoId, ngoId));
+      const campaignIds = ngoCampaigns.map(c => c.id);
+
+      if (campaignIds.length === 0) {
+        return res.json([]);
+      }
+
+      const donations = await dbInstance.select({
+        donation: donationsTable,
+        campaign: campaignsTable,
+      })
+        .from(donationsTable)
+        .leftJoin(campaignsTable, eq(donationsTable.campaignId, campaignsTable.id))
+        .where(inArray(donationsTable.campaignId, campaignIds))
+        .orderBy(desc(donationsTable.createdAt));
+      res.json(donations);
+    } catch (error) {
+      res.status(500).json({ message: "Error fetching donations", error: String(error) });
+    }
+  });
+
+  // NGO Donation Amount Cards
+  app.get('/api/ngo/campaigns/:id/amounts', isNgoAuthenticated, async (req, res) => {
+    try {
+      const { db: dbInstance } = await import('./db.js');
+      const { donationAmountCards } = await import('@shared/schema');
+      const { eq, asc } = await import('drizzle-orm');
+      const cards = await dbInstance.select().from(donationAmountCards)
+        .where(eq(donationAmountCards.campaignId, parseInt(req.params.id)));
+      res.json(cards);
+    } catch (error) {
+      res.status(500).json({ message: "Error fetching amount cards", error: String(error) });
+    }
+  });
+
+  app.post('/api/ngo/campaigns/:id/amounts', isNgoAuthenticated, async (req, res) => {
+    try {
+      const { db: dbInstance } = await import('./db.js');
+      const { ngoDonationAmountCards } = await import('@shared/schema');
+      const { amount, label, displayOrder } = req.body;
+      const [card] = await dbInstance.insert(ngoDonationAmountCards).values({
+        ngoCampaignId: parseInt(req.params.id),
+        amount: parseInt(amount),
+        label: label || null,
+        displayOrder: parseInt(displayOrder) || 0,
+      }).returning();
+      res.status(201).json(card);
+    } catch (error) {
+      res.status(500).json({ message: "Error creating amount card", error: String(error) });
+    }
+  });
+
+  app.delete('/api/ngo/campaigns/:campaignId/amounts/:cardId', isNgoAuthenticated, async (req, res) => {
+    try {
+      const { db: dbInstance } = await import('./db.js');
+      const { ngoDonationAmountCards } = await import('@shared/schema');
+      const { eq } = await import('drizzle-orm');
+      await dbInstance.delete(ngoDonationAmountCards).where(eq(ngoDonationAmountCards.id, parseInt(req.params.cardId)));
+      res.json({ message: "Card deleted" });
+    } catch (error) {
+      res.status(500).json({ message: "Error deleting card", error: String(error) });
+    }
+  });
+
+  // ---- Admin NGO Management ----
+
+  // GET /api/admin/ngos - List all NGO registrations
+  app.get('/api/admin/ngos', async (req, res) => {
+    try {
+      const { db: dbInstance } = await import('./db.js');
+      const { ngos: ngosTable, ngoUsers: ngoUsersTable } = await import('@shared/schema');
+      const { desc, eq } = await import('drizzle-orm');
+      const { status } = req.query;
+      
+      const allNgos = await dbInstance.select().from(ngosTable).orderBy(desc(ngosTable.createdAt));
+      
+      // Attach login credentials for each NGO
+      const ngosWithCredentials = await Promise.all(
+        allNgos.map(async (ngo) => {
+          const users = await dbInstance
+            .select({ id: ngoUsersTable.id, email: ngoUsersTable.email, password: ngoUsersTable.password, plainPassword: ngoUsersTable.plainPassword, name: ngoUsersTable.name, role: ngoUsersTable.role, isActive: ngoUsersTable.isActive })
+            .from(ngoUsersTable)
+            .where(eq(ngoUsersTable.ngoId, ngo.id));
+          return { ...ngo, loginCredentials: users };
+        })
+      );
+      
+      const filtered = status ? ngosWithCredentials.filter(n => n.status === status) : ngosWithCredentials;
+      res.json(filtered);
+    } catch (error) {
+      res.status(500).json({ message: "Error fetching NGOs", error: String(error) });
+    }
+  });
+
+  // GET /api/admin/ngos/:id - NGO details
+  app.get('/api/admin/ngos/:id', async (req, res) => {
+    try {
+      const { db: dbInstance } = await import('./db.js');
+      const { ngos: ngosTable } = await import('@shared/schema');
+      const { eq } = await import('drizzle-orm');
+      const ngo = await dbInstance.query.ngos?.findFirst({ where: eq(ngosTable.id, parseInt(req.params.id)) });
+      if (!ngo) return res.status(404).json({ message: "NGO not found" });
+      res.json(ngo);
+    } catch (error) {
+      res.status(500).json({ message: "Error fetching NGO", error: String(error) });
+    }
+  });
+
+  // PUT /api/admin/ngos/:id - Edit NGO
+  app.put('/api/admin/ngos/:id', async (req, res) => {
+    try {
+      const { db: dbInstance } = await import('./db.js');
+      const { ngos: ngosTable } = await import('@shared/schema');
+      const { eq } = await import('drizzle-orm');
+      const [updated] = await dbInstance.update(ngosTable).set({ ...req.body, updatedAt: new Date() })
+        .where(eq(ngosTable.id, parseInt(req.params.id))).returning();
+      res.json({ message: "NGO updated", ngo: updated });
+    } catch (error) {
+      res.status(500).json({ message: "Error updating NGO", error: String(error) });
+    }
+  });
+
+  // PUT /api/admin/ngos/:id/approve
+  app.put('/api/admin/ngos/:id/approve', async (req, res) => {
+    try {
+      const { db: dbInstance } = await import('./db.js');
+      const { ngos: ngosTable, ngoUsers: ngoUsersTable } = await import('@shared/schema');
+      const { eq } = await import('drizzle-orm');
+      const id = parseInt(req.params.id);
+      const [updated] = await dbInstance.update(ngosTable)
+        .set({ status: 'approved', approvedAt: new Date(), rejectionReason: null, updatedAt: new Date() })
+        .where(eq(ngosTable.id, id)).returning();
+      // Activate NGO user accounts
+      await dbInstance.update(ngoUsersTable).set({ isActive: true }).where(eq(ngoUsersTable.ngoId, id));
+      res.json({ message: "NGO approved successfully", ngo: updated });
+    } catch (error) {
+      res.status(500).json({ message: "Error approving NGO", error: String(error) });
+    }
+  });
+
+  // PUT /api/admin/ngos/:id/reject
+  app.put('/api/admin/ngos/:id/reject', async (req, res) => {
+    try {
+      const { db: dbInstance } = await import('./db.js');
+      const { ngos: ngosTable, ngoUsers: ngoUsersTable } = await import('@shared/schema');
+      const { eq } = await import('drizzle-orm');
+      const id = parseInt(req.params.id);
+      const { reason } = req.body;
+      const [updated] = await dbInstance.update(ngosTable)
+        .set({ status: 'rejected', rejectionReason: reason || null, updatedAt: new Date() })
+        .where(eq(ngosTable.id, id)).returning();
+      await dbInstance.update(ngoUsersTable).set({ isActive: false }).where(eq(ngoUsersTable.ngoId, id));
+      res.json({ message: "NGO rejected", ngo: updated });
+    } catch (error) {
+      res.status(500).json({ message: "Error rejecting NGO", error: String(error) });
+    }
+  });
+
+  // PUT /api/admin/ngos/:id/suspend
+  app.put('/api/admin/ngos/:id/suspend', async (req, res) => {
+    try {
+      const { db: dbInstance } = await import('./db.js');
+      const { ngos: ngosTable, ngoUsers: ngoUsersTable } = await import('@shared/schema');
+      const { eq } = await import('drizzle-orm');
+      const id = parseInt(req.params.id);
+      const [updated] = await dbInstance.update(ngosTable)
+        .set({ status: 'suspended', updatedAt: new Date() })
+        .where(eq(ngosTable.id, id)).returning();
+      await dbInstance.update(ngoUsersTable).set({ isActive: false }).where(eq(ngoUsersTable.ngoId, id));
+      res.json({ message: "NGO suspended", ngo: updated });
+    } catch (error) {
+      res.status(500).json({ message: "Error suspending NGO", error: String(error) });
+    }
+  });
+
+  // DELETE /api/admin/ngos/:id
+  app.delete('/api/admin/ngos/:id', async (req, res) => {
+    try {
+      const { db: dbInstance } = await import('./db.js');
+      const { ngos: ngosTable } = await import('@shared/schema');
+      const { eq } = await import('drizzle-orm');
+      await dbInstance.delete(ngosTable).where(eq(ngosTable.id, parseInt(req.params.id)));
+      res.json({ message: "NGO deleted" });
+    } catch (error) {
+      res.status(500).json({ message: "Error deleting NGO", error: String(error) });
+    }
+  });
+
+  // PUT /api/admin/ngo-users/:userId/reset-password
+  app.put('/api/admin/ngo-users/:userId/reset-password', async (req, res) => {
+    try {
+      const { db: dbInstance } = await import('./db.js');
+      const { ngoUsers: ngoUsersTable } = await import('@shared/schema');
+      const { eq } = await import('drizzle-orm');
+      const { password } = req.body;
+      if (!password || password.length < 4) {
+        return res.status(400).json({ message: "Password must be at least 4 characters" });
+      }
+      const bcrypt = require('bcrypt');
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const [updated] = await dbInstance.update(ngoUsersTable)
+        .set({ password: hashedPassword, plainPassword: password })
+        .where(eq(ngoUsersTable.id, parseInt(req.params.userId)))
+        .returning();
+      if (!updated) return res.status(404).json({ message: "User not found" });
+      res.json({ message: "Password updated successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Error resetting password", error: String(error) });
+    }
+  });
+
+
+  // ---- Admin NGO Campaign Approvals ----
+
+  // GET /api/admin/ngo-campaigns - All NGO-submitted campaigns (ngoId is NOT null)
+  app.get('/api/admin/ngo-campaigns', async (req, res) => {
+    try {
+      const { db: dbInstance } = await import('./db.js');
+      const { campaigns: campaignsTable, ngos: ngosTable } = await import('@shared/schema');
+      const { eq, desc, isNotNull } = await import('drizzle-orm');
+      const { status } = req.query;
+
+      const allCampaigns = await dbInstance.select({
+        campaign: campaignsTable,
+        ngo: { id: ngosTable.id, name: ngosTable.name, logo: ngosTable.logo, email: ngosTable.email }
+      })
+        .from(campaignsTable)
+        .leftJoin(ngosTable, eq(campaignsTable.ngoId, ngosTable.id))
+        .where(isNotNull(campaignsTable.ngoId))
+        .orderBy(desc(campaignsTable.createdAt));
+
+      const filtered = status ? allCampaigns.filter(c => c.campaign.approvalStatus === status) : allCampaigns;
+      res.json(filtered);
+    } catch (error) {
+      res.status(500).json({ message: "Error fetching NGO campaigns", error: String(error) });
+    }
+  });
+
+  // GET /api/admin/ngo-campaigns/:id - Campaign details
+  app.get('/api/admin/ngo-campaigns/:id', async (req, res) => {
+    try {
+      const { db: dbInstance } = await import('./db.js');
+      const { campaigns: campaignsTable, ngos: ngosTable } = await import('@shared/schema');
+      const { eq } = await import('drizzle-orm');
+      const results = await dbInstance.select({
+        campaign: campaignsTable,
+        ngo: ngosTable,
+      })
+        .from(campaignsTable)
+        .leftJoin(ngosTable, eq(campaignsTable.ngoId, ngosTable.id))
+        .where(eq(campaignsTable.id, parseInt(req.params.id)));
+
+      if (!results[0]) return res.status(404).json({ message: "Campaign not found" });
+      res.json(results[0]);
+    } catch (error) {
+      res.status(500).json({ message: "Error fetching campaign", error: String(error) });
+    }
+  });
+
+  // PUT /api/admin/ngo-campaigns/:id/approve - Approve + set displayOrder + make active
+  app.put('/api/admin/ngo-campaigns/:id/approve', async (req, res) => {
+    try {
+      const { db: dbInstance } = await import('./db.js');
+      const { campaigns: campaignsTable } = await import('@shared/schema');
+      const { eq } = await import('drizzle-orm');
+      const { displayOrder } = req.body;
+      const [updated] = await dbInstance.update(campaignsTable)
+        .set({
+          approvalStatus: 'approved',
+          status: 'active',
+          adminRemarks: null,
+          showOnHomepage: true,
+          displayOrder: displayOrder ? parseInt(displayOrder) : 1,
+          updatedAt: new Date()
+        })
+        .where(eq(campaignsTable.id, parseInt(req.params.id))).returning();
+      res.json({ message: "Campaign approved and published", campaign: updated });
+    } catch (error) {
+      res.status(500).json({ message: "Error approving campaign", error: String(error) });
+    }
+  });
+
+  // PUT /api/admin/ngo-campaigns/:id/reject
+  app.put('/api/admin/ngo-campaigns/:id/reject', async (req, res) => {
+    try {
+      const { db: dbInstance } = await import('./db.js');
+      const { campaigns: campaignsTable } = await import('@shared/schema');
+      const { eq } = await import('drizzle-orm');
+      const { reason } = req.body;
+      const [updated] = await dbInstance.update(campaignsTable)
+        .set({ approvalStatus: 'rejected', status: 'draft', adminRemarks: reason || null, updatedAt: new Date() })
+        .where(eq(campaignsTable.id, parseInt(req.params.id))).returning();
+      res.json({ message: "Campaign rejected", campaign: updated });
+    } catch (error) {
+      res.status(500).json({ message: "Error rejecting campaign", error: String(error) });
+    }
+  });
+
+  // PUT /api/admin/ngo-campaigns/:id - Admin edit campaign
+  app.put('/api/admin/ngo-campaigns/:id', upload.single('coverImage'), async (req, res) => {
+    try {
+      const { db: dbInstance } = await import('./db.js');
+      const { campaigns: campaignsTable } = await import('@shared/schema');
+      const { eq } = await import('drizzle-orm');
+      const updateData: any = { ...req.body, updatedAt: new Date() };
+      if (req.file) updateData.coverImage = `/uploads/${req.file.filename}`;
+      // Parse numeric fields
+      if (updateData.goalAmount) updateData.goalAmount = parseInt(updateData.goalAmount);
+      if (updateData.displayOrder) updateData.displayOrder = parseInt(updateData.displayOrder);
+      const [updated] = await dbInstance.update(campaignsTable).set(updateData)
+        .where(eq(campaignsTable.id, parseInt(req.params.id))).returning();
+      res.json({ message: "Campaign updated", campaign: updated });
+    } catch (error) {
+      res.status(500).json({ message: "Error updating campaign", error: String(error) });
+    }
+  });
+
+  // DELETE /api/admin/ngo-campaigns/:id
+  app.delete('/api/admin/ngo-campaigns/:id', async (req, res) => {
+    try {
+      const { db: dbInstance } = await import('./db.js');
+      const { campaigns: campaignsTable } = await import('@shared/schema');
+      const { eq } = await import('drizzle-orm');
+      await dbInstance.delete(campaignsTable).where(eq(campaignsTable.id, parseInt(req.params.id)));
+      res.json({ message: "Campaign deleted" });
+    } catch (error) {
+      res.status(500).json({ message: "Error deleting campaign", error: String(error) });
+    }
+  });
+
+  // ---- Public NGO Campaigns (legacy routes, kept for backward compat) ----
+
+  // GET /api/public/ngo-campaigns - All approved NGO campaigns
+  app.get('/api/public/ngo-campaigns', async (req, res) => {
+    try {
+      const { db: dbInstance } = await import('./db.js');
+      const { campaigns: campaignsTable, ngos: ngosTable } = await import('@shared/schema');
+      const { eq, and, isNotNull, asc } = await import('drizzle-orm');
+      const results = await dbInstance.select({
+        campaign: campaignsTable,
+        ngo: { id: ngosTable.id, name: ngosTable.name, logo: ngosTable.logo, upiId: ngosTable.upiId, qrCode: ngosTable.qrCode, accountHolderName: ngosTable.accountHolderName, accountNumber: ngosTable.accountNumber, ifscCode: ngosTable.ifscCode, bankName: ngosTable.bankName, branchName: ngosTable.branchName }
+      })
+        .from(campaignsTable)
+        .leftJoin(ngosTable, eq(campaignsTable.ngoId, ngosTable.id))
+        .where(and(
+          isNotNull(campaignsTable.ngoId),
+          eq(campaignsTable.approvalStatus, 'approved'),
+          eq(campaignsTable.status, 'active')
+        ))
+        .orderBy(asc(campaignsTable.displayOrder));
+      res.json(results);
+    } catch (error) {
+      res.status(500).json({ message: "Error fetching public campaigns", error: String(error) });
+    }
+  });
+
+  // GET /api/public/ngo-campaigns/:slug
+  app.get('/api/public/ngo-campaigns/:slug', async (req, res) => {
+    try {
+      const { db: dbInstance } = await import('./db.js');
+      const { campaigns: campaignsTable, ngos: ngosTable, donationAmountCards } = await import('@shared/schema');
+      const { eq, and } = await import('drizzle-orm');
+      const results = await dbInstance.select({
+        campaign: campaignsTable,
+        ngo: ngosTable,
+      })
+        .from(campaignsTable)
+        .leftJoin(ngosTable, eq(campaignsTable.ngoId, ngosTable.id))
+        .where(and(eq(campaignsTable.slug, req.params.slug), eq(campaignsTable.approvalStatus, 'approved')));
+
+      if (!results[0]) return res.status(404).json({ message: "Campaign not found" });
+
+      const amountCards = await dbInstance.select().from(donationAmountCards)
+        .where(eq(donationAmountCards.campaignId, results[0].campaign.id));
+
+      res.json({ ...results[0], amountCards });
+    } catch (error) {
+      res.status(500).json({ message: "Error fetching campaign", error: String(error) });
+    }
+  });
+
+  // Admin Donations with NGO filter
+  app.get('/api/admin/all-donations', async (req, res) => {
+    try {
+      const { db: dbInstance } = await import('./db.js');
+      const { donations: donationsTable, ngos: ngosTable, campaigns: campaignsTable } = await import('@shared/schema');
+      const { eq, desc } = await import('drizzle-orm');
+      const donations = await dbInstance.select({
+        donation: donationsTable,
+        ngo: { id: ngosTable.id, name: ngosTable.name },
+        campaign: { id: campaignsTable.id, title: campaignsTable.title },
+      })
+        .from(donationsTable)
+        .leftJoin(campaignsTable, eq(donationsTable.campaignId, campaignsTable.id))
+        .leftJoin(ngosTable, eq(campaignsTable.ngoId, ngosTable.id))
+        .orderBy(desc(donationsTable.createdAt));
+      res.json(donations);
+    } catch (error) {
+      res.status(500).json({ message: "Error fetching all donations", error: String(error) });
+    }
+  });
+
+  // About Sections API endpoints
+  app.get("/api/about-sections", async (req, res) => {
+    try {
+      const sections = await storage.getAboutSections();
+      res.json(sections.filter(s => s.isActive));
+    } catch (error) {
+      res.status(500).json({ message: "Error fetching about sections" });
+    }
+  });
+
+  app.get("/api/admin/about-sections", isAdmin, async (req, res) => {
+    try {
+      const sections = await storage.getAboutSections();
+      res.json(sections);
+    } catch (error) {
+      res.status(500).json({ message: "Error fetching about sections" });
+    }
+  });
+
+  app.post("/api/admin/about-sections", isAdmin, async (req, res) => {
+    try {
+      const data = insertAboutSectionSchema.parse(req.body);
+      const section = await storage.createAboutSection(data);
+      res.status(201).json(section);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Error creating about section" });
+    }
+  });
+
+  app.put("/api/admin/about-sections/:id", isAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const data = insertAboutSectionSchema.partial().parse(req.body);
+      const section = await storage.updateAboutSection(id, data);
+      if (!section) {
+        return res.status(404).json({ message: "About section not found" });
+      }
+      res.json(section);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Error updating about section" });
+    }
+  });
+
+  app.delete("/api/admin/about-sections/:id", isAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteAboutSection(id);
+      if (!success) {
+        return res.status(404).json({ message: "About section not found" });
+      }
+      res.json({ message: "About section deleted" });
+    } catch (error) {
+      res.status(500).json({ message: "Error deleting about section" });
+    }
+  });
+
+  // Contact Info API endpoints
+  app.get("/api/contact-info", async (req, res) => {
+    try {
+      const info = await storage.getContactInfo();
+      res.json(info);
+    } catch (error) {
+      res.status(500).json({ message: "Error fetching contact info" });
+    }
+  });
+
+  app.get("/api/admin/contact-info", isAdmin, async (req, res) => {
+    try {
+      const info = await storage.getContactInfo();
+      res.json(info);
+    } catch (error) {
+      res.status(500).json({ message: "Error fetching contact info" });
+    }
+  });
+
+  app.put("/api/admin/contact-info", isAdmin, async (req, res) => {
+    try {
+      const data = insertContactInfoSchema.partial().parse(req.body);
+      const info = await storage.updateContactInfo(data);
+      res.json(info);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Error updating contact info" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
+

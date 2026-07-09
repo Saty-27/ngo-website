@@ -1,5 +1,117 @@
 import { storage } from "./storage";
 
+export async function initializePolicies() {
+  try {
+    const existingPolicies = await storage.getPolicies();
+    if (existingPolicies.length > 0) {
+      console.log("Policies already exist, skipping initialization");
+      return;
+    }
+
+    const privacyPolicyContent = `
+Privacy Policy
+
+Last Updated: July 2026
+
+1. Introduction
+Welcome to our platform. We are committed to protecting your personal information and your right to privacy. This Privacy Policy explains how we collect, use, share, and protect your information when you visit our website, use our services, or interact with us.
+
+2. Information We Collect
+We may collect personal information that you provide to us directly, such as:
+- Name, email address, and phone number
+- Payment information
+- Donation history
+- Profile information
+- Communications you send to us
+
+3. How We Use Your Information
+We use the information we collect for various purposes:
+- To process your donations and provide receipts
+- To communicate with you about our services, events, and campaigns
+- To improve our website and services
+- To comply with legal obligations
+
+4. Sharing Your Information
+We do not sell, rent, or trade your personal information. We may share your information with trusted partners who help us operate our services, as required by law, or with your consent.
+
+5. Data Security
+We implement reasonable security measures to protect your information from unauthorized access or disclosure. However, no method of transmission over the internet is completely secure.
+
+6. Your Rights
+You have the right to:
+- Access and update your personal information
+- Request deletion of your data
+- Opt-out of marketing communications
+
+7. Changes to This Policy
+We may update this Privacy Policy from time to time. We will notify you of any changes by posting the new policy on our website.
+
+8. Contact Us
+If you have any questions about this Privacy Policy, please contact us.
+`;
+
+    const termsAndConditionsContent = `
+Terms and Conditions
+
+Last Updated: July 2026
+
+1. Acceptance of Terms
+By accessing our website and using our services, you agree to these Terms and Conditions. If you do not agree, please do not use our services.
+
+2. Services
+We provide a platform for donations to raise funds, manage campaigns, and connect donors with NGOs.
+
+3. User Accounts
+To use certain features, you may need to create an account. You are responsible for maintaining the confidentiality of your account credentials and for all activities under your account.
+
+4. Donations
+Donations made through our platform are subject to our terms. We process donations securely and provide receipts. Refunds may be available in certain circumstances, please contact us.
+
+5. NGO Registration
+NGOs must register and provide accurate information. We reserve the right to approve or reject NGO registrations.
+
+6. Campaigns
+NGOs can create campaigns, which are subject to approval. Campaigns must comply with our content policies.
+
+7. Intellectual Property
+All content on our website is protected by copyright and other intellectual property laws.
+
+8. Limitation of Liability
+We are not liable for any indirect, incidental, or consequential damages arising from your use of our services.
+
+9. Governing Law
+These terms are governed by the laws of India.
+
+10. Changes to Terms
+We may update these Terms and Conditions from time to time.
+
+11. Contact
+For any questions about these terms, please contact us.
+`;
+
+    await storage.createPolicy({
+      title: "Privacy Policy",
+      slug: "privacy-policy",
+      content: privacyPolicyContent,
+      order: 1,
+      isActive: true
+    });
+
+    await storage.createPolicy({
+      title: "Terms and Conditions",
+      slug: "terms-and-conditions",
+      content: termsAndConditionsContent,
+      order: 2,
+      isActive: true
+    });
+
+    console.log("Successfully initialized policies");
+  } catch (error) {
+    console.error("Error initializing policies:", error);
+  }
+}
+
+
 export async function initializeBlogData() {
   try {
     // Check if blog posts already exist

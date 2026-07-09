@@ -18,8 +18,10 @@ interface ContactMessage {
   name: string;
   email: string;
   phone: string | null;
-  subject: string;
-  message: string;
+  subject: string | null;
+  message: string | null;
+  query?: string | null;
+  aboutSectionId?: number | null;
   isRead: boolean;
   createdAt: Date;
 }
@@ -71,7 +73,9 @@ const MessagesPage = () => {
     searchQuery === "" || 
     message.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     message.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    message.subject.toLowerCase().includes(searchQuery.toLowerCase())
+    (message.subject || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (message.message || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (message.query || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleViewMessage = (message: ContactMessage) => {
@@ -236,7 +240,7 @@ const MessagesPage = () => {
                         </td>
                         <td className="py-5 px-6">
                           <div className="max-w-xs truncate font-medium text-gray-900 text-sm">
-                            {message.subject}
+                            {message.subject || (message.aboutSectionId ? "About Section Inquiry" : "No Subject")}
                           </div>
                         </td>
                         <td className="py-5 px-6 text-sm text-gray-600">
@@ -300,15 +304,21 @@ const MessagesPage = () => {
                   
                   <div className="bg-white rounded-xl p-4 shadow-sm">
                     <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Subject</label>
-                    <p className="text-lg font-semibold text-gray-900 mt-1">{selectedMessage.subject}</p>
+                    <p className="text-lg font-semibold text-gray-900 mt-1">
+                      {selectedMessage.subject || (selectedMessage.aboutSectionId ? `About Section Inquiry (Section ID: ${selectedMessage.aboutSectionId})` : "No Subject")}
+                    </p>
                   </div>
                 </div>
                 
                 {/* Message Content */}
                 <div className="bg-gray-50 rounded-2xl p-6">
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 block">Message</label>
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 block">
+                    {selectedMessage.query ? "Query" : "Message"}
+                  </label>
                   <div className="bg-white rounded-xl p-4 shadow-sm">
-                    <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">{selectedMessage.message}</p>
+                    <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">
+                      {selectedMessage.message || selectedMessage.query || "No content"}
+                    </p>
                   </div>
                 </div>
                 

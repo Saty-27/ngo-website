@@ -92,6 +92,9 @@ const Header = () => {
             <Link href="/" className="font-poppins font-medium text-primary hover:text-secondary transition-colors">
               Home
             </Link>
+            <Link href="/about" className="font-poppins font-medium text-dark hover:text-secondary transition-colors">
+              About
+            </Link>
             <Link href="/donate" className="font-poppins font-medium text-dark hover:text-secondary transition-colors">
               Donate
             </Link>
@@ -109,6 +112,9 @@ const Header = () => {
             </Link>
             <Link href="/contact" className="font-poppins font-medium text-dark hover:text-secondary transition-colors">
               Contact
+            </Link>
+            <Link href="/ngo/register" className="font-poppins font-medium text-dark hover:text-secondary transition-colors">
+              NGO Register
             </Link>
             <button
               onClick={() => setIsLiveVideoOpen(true)}
@@ -162,6 +168,13 @@ const Header = () => {
               Home
             </Link>
             <Link 
+              href="/about"
+              className="font-poppins font-medium text-dark hover:text-secondary transition-colors"
+              onClick={closeMobileMenu}
+            >
+              About
+            </Link>
+            <Link 
               href="/donate"
               className="font-poppins font-medium text-dark hover:text-secondary transition-colors"
               onClick={closeMobileMenu}
@@ -202,6 +215,13 @@ const Header = () => {
               onClick={closeMobileMenu}
             >
               Contact
+            </Link>
+            <Link 
+              href="/ngo/register"
+              className="font-poppins font-medium text-dark hover:text-secondary transition-colors"
+              onClick={closeMobileMenu}
+            >
+              NGO Register
             </Link>
             <button
               onClick={() => {

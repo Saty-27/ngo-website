@@ -1,6 +1,6 @@
 // @ts-nocheck
 import {
-  User, InsertUser, users, 
+  User, InsertUser, users,
   Banner, InsertBanner, banners,
   Quote, InsertQuote, quotes,
   DonationCategory, InsertDonationCategory, donationCategories,
@@ -21,9 +21,18 @@ import {
   Schedule, InsertSchedule, schedules,
   BlogPost, InsertBlogPost, blogPosts,
   ProcessSection, InsertProcessSection, processSections,
+  FooterSettings, InsertFooterSettings, footerSettings,
+  Policy, InsertPolicy, policies,
+  PoliciesPage, InsertPoliciesPage, policiesPage,
   Campaign, InsertCampaign, campaigns,
   DonationAmountCard, InsertDonationAmountCard, donationAmountCards,
-  ReceiptSettings, InsertReceiptSettings, receiptSettings
+  ReceiptSettings, InsertReceiptSettings, receiptSettings,
+  Ngo, InsertNgo, ngos,
+  NgoUser, InsertNgoUser, ngoUsers,
+  NgoCampaign, InsertNgoCampaign, ngoCampaigns,
+  NgoDonationAmountCard, InsertNgoDonationAmountCard, ngoDonationAmountCards,
+  AboutSection, InsertAboutSection, aboutSections,
+  ContactInfo, InsertContactInfo, contactInfo
 } from "@shared/schema";
 
 export interface IStorage {
@@ -203,6 +212,61 @@ export interface IStorage {
   // Receipt settings management
   getReceiptSettings(): Promise<ReceiptSettings>;
   updateReceiptSettings(settings: Partial<ReceiptSettings>): Promise<ReceiptSettings>;
+
+  // NGO management
+  getNgos(): Promise<Ngo[]>;
+  getNgo(id: number): Promise<Ngo | undefined>;
+  getNgoByEmail(email: string): Promise<Ngo | undefined>;
+  createNgo(ngo: InsertNgo): Promise<Ngo>;
+  updateNgo(id: number, ngoData: Partial<Ngo>): Promise<Ngo | undefined>;
+  deleteNgo(id: number): Promise<boolean>;
+
+  // NGO User management
+  getNgoUsers(): Promise<NgoUser[]>;
+  getNgoUser(id: number): Promise<NgoUser | undefined>;
+  getNgoUserByEmail(email: string): Promise<NgoUser | undefined>;
+  createNgoUser(user: InsertNgoUser): Promise<NgoUser>;
+  updateNgoUser(id: number, userData: Partial<NgoUser>): Promise<NgoUser | undefined>;
+  deleteNgoUser(id: number): Promise<boolean>;
+
+  // NGO Campaign management
+  getNgoCampaigns(): Promise<NgoCampaign[]>;
+  getNgoCampaign(id: number): Promise<NgoCampaign | undefined>;
+  getNgoCampaignsByNgoId(ngoId: number): Promise<NgoCampaign[]>;
+  createNgoCampaign(campaign: InsertNgoCampaign): Promise<NgoCampaign>;
+  updateNgoCampaign(id: number, campaignData: Partial<NgoCampaign>): Promise<NgoCampaign | undefined>;
+  deleteNgoCampaign(id: number): Promise<boolean>;
+
+  // NGO Donation Amount Cards management
+  getNgoDonationAmountCards(ngoCampaignId: number): Promise<NgoDonationAmountCard[]>;
+  getNgoDonationAmountCard(id: number): Promise<NgoDonationAmountCard | undefined>;
+  createNgoDonationAmountCard(card: InsertNgoDonationAmountCard): Promise<NgoDonationAmountCard>;
+  updateNgoDonationAmountCard(id: number, cardData: Partial<NgoDonationAmountCard>): Promise<NgoDonationAmountCard | undefined>;
+  deleteNgoDonationAmountCard(id: number): Promise<boolean>;
+
+  // Policy management
+  getPolicies(): Promise<Policy[]>;
+  getPolicy(id: number): Promise<Policy | undefined>;
+  getPolicyBySlug(slug: string): Promise<Policy | undefined>;
+  createPolicy(policy: InsertPolicy): Promise<Policy>;
+  updatePolicy(id: number, policyData: Partial<Policy>): Promise<Policy | undefined>;
+  deletePolicy(id: number): Promise<boolean>;
+  getAllPolicies(): Promise<Policy[]>;
+
+  // Policies Page Settings management
+  getPoliciesPage(): Promise<PoliciesPage | undefined>;
+  updatePoliciesPage(pageData: Partial<PoliciesPage>): Promise<PoliciesPage | undefined>;
+  
+  // About Sections management
+  getAboutSections(): Promise<AboutSection[]>;
+  getAboutSection(id: number): Promise<AboutSection | undefined>;
+  createAboutSection(section: InsertAboutSection): Promise<AboutSection>;
+  updateAboutSection(id: number, sectionData: Partial<AboutSection>): Promise<AboutSection | undefined>;
+  deleteAboutSection(id: number): Promise<boolean>;
+  
+  // Contact Info management
+  getContactInfo(): Promise<ContactInfo | undefined>;
+  updateContactInfo(infoData: Partial<ContactInfo>): Promise<ContactInfo | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -226,11 +290,26 @@ export class MemStorage implements IStorage {
   private schedulesData: Map<number, Schedule>;
   private blogPostsData: Map<number, BlogPost>;
   private processSectionsData: Map<number, ProcessSection>;
+  private footerSettingsData: FooterSettings | undefined;
+  private policiesData: Map<number, Policy>;
+  private policiesPageData: PoliciesPage | undefined;
   private campaignsData: Map<number, Campaign>;
   private donationAmountCardsData: Map<number, DonationAmountCard>;
   private receiptSettingsData: ReceiptSettings;
+  private ngosData: Map<number, Ngo>;
+  private ngoUsersData: Map<number, NgoUser>;
+  private ngoCampaignsData: Map<number, NgoCampaign>;
+  private ngoDonationAmountCardsData: Map<number, NgoDonationAmountCard>;
+  private aboutSectionsData: Map<number, AboutSection>;
+  private contactInfoData: ContactInfo | undefined;
   private campaignIdCounter: number;
   private donationAmountCardIdCounter: number;
+  private ngoIdCounter: number;
+  private ngoUserIdCounter: number;
+  private ngoCampaignIdCounter: number;
+  private ngoDonationAmountCardIdCounter: number;
+  private policyIdCounter: number;
+  private aboutSectionIdCounter: number;
   
   private userIdCounter: number;
   private bannerIdCounter: number;
@@ -274,8 +353,14 @@ export class MemStorage implements IStorage {
     this.schedulesData = new Map();
     this.blogPostsData = new Map();
     this.processSectionsData = new Map();
+    this.policiesData = new Map();
     this.campaignsData = new Map();
     this.donationAmountCardsData = new Map();
+    this.ngosData = new Map();
+    this.ngoUsersData = new Map();
+    this.ngoCampaignsData = new Map();
+    this.ngoDonationAmountCardsData = new Map();
+    this.aboutSectionsData = new Map();
     this.receiptSettingsData = {
       id: 1,
       orgName: "ISKCON JUHU",
@@ -286,6 +371,10 @@ export class MemStorage implements IStorage {
     };
     this.campaignIdCounter = 1;
     this.donationAmountCardIdCounter = 1;
+    this.ngoIdCounter = 1;
+    this.ngoUserIdCounter = 1;
+    this.ngoCampaignIdCounter = 1;
+    this.ngoDonationAmountCardIdCounter = 1;
     
     this.userIdCounter = 1;
     this.bannerIdCounter = 1;
@@ -306,6 +395,8 @@ export class MemStorage implements IStorage {
     this.statIdCounter = 1;
     this.scheduleIdCounter = 1;
     this.blogPostIdCounter = 1;
+    this.policyIdCounter = 1;
+    this.aboutSectionIdCounter = 1;
     
     this.initializeData();
   }
@@ -1515,6 +1606,324 @@ export class MemStorage implements IStorage {
       updatedAt: new Date(),
     };
     return this.receiptSettingsData;
+  }
+
+  // NGO management methods
+  async getNgos(): Promise<Ngo[]> {
+    return Array.from(this.ngosData.values());
+  }
+
+  async getNgo(id: number): Promise<Ngo | undefined> {
+    return this.ngosData.get(id);
+  }
+
+  async getNgoByEmail(email: string): Promise<Ngo | undefined> {
+    return Array.from(this.ngosData.values()).find(ngo => ngo.email === email);
+  }
+
+  async createNgo(ngo: InsertNgo): Promise<Ngo> {
+    const id = this.ngoIdCounter++;
+    const newNgo: Ngo = {
+      ...ngo,
+      id,
+      status: ngo.status ?? "pending",
+      logo: ngo.logo ?? null,
+      registrationCertificate: ngo.registrationCertificate ?? null,
+      website: ngo.website ?? null,
+      alternatePhone: ngo.alternatePhone ?? null,
+      accountHolderName: ngo.accountHolderName ?? null,
+      bankName: ngo.bankName ?? null,
+      accountNumber: ngo.accountNumber ?? null,
+      ifscCode: ngo.ifscCode ?? null,
+      branchName: ngo.branchName ?? null,
+      upiId: ngo.upiId ?? null,
+      qrCode: ngo.qrCode ?? null,
+      about: ngo.about ?? null,
+      mission: ngo.mission ?? null,
+      vision: ngo.vision ?? null,
+      establishedYear: ngo.establishedYear ?? null,
+      totalVolunteers: ngo.totalVolunteers ?? null,
+      totalBeneficiaries: ngo.totalBeneficiaries ?? null,
+      facebook: ngo.facebook ?? null,
+      twitter: ngo.twitter ?? null,
+      instagram: ngo.instagram ?? null,
+      youtube: ngo.youtube ?? null,
+      linkedin: ngo.linkedin ?? null,
+      rejectionReason: null,
+      approvedAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.ngosData.set(id, newNgo);
+    return newNgo;
+  }
+
+  async updateNgo(id: number, ngoData: Partial<Ngo>): Promise<Ngo | undefined> {
+    const ngo = this.ngosData.get(id);
+    if (!ngo) return undefined;
+    const updatedNgo = { ...ngo, ...ngoData, updatedAt: new Date() };
+    this.ngosData.set(id, updatedNgo);
+    return updatedNgo;
+  }
+
+  async deleteNgo(id: number): Promise<boolean> {
+    return this.ngosData.delete(id);
+  }
+
+  // NGO User management methods
+  async getNgoUsers(): Promise<NgoUser[]> {
+    return Array.from(this.ngoUsersData.values());
+  }
+
+  async getNgoUser(id: number): Promise<NgoUser | undefined> {
+    return this.ngoUsersData.get(id);
+  }
+
+  async getNgoUserByEmail(email: string): Promise<NgoUser | undefined> {
+    return Array.from(this.ngoUsersData.values()).find(user => user.email === email);
+  }
+
+  async createNgoUser(user: InsertNgoUser): Promise<NgoUser> {
+    const id = this.ngoUserIdCounter++;
+    const newUser: NgoUser = {
+      ...user,
+      id,
+      designation: user.designation ?? null,
+      phone: user.phone ?? null,
+      role: user.role ?? "ngo_admin",
+      isActive: user.isActive ?? true,
+      createdAt: new Date(),
+    };
+    this.ngoUsersData.set(id, newUser);
+    return newUser;
+  }
+
+  async updateNgoUser(id: number, userData: Partial<NgoUser>): Promise<NgoUser | undefined> {
+    const user = this.ngoUsersData.get(id);
+    if (!user) return undefined;
+    const updatedUser = { ...user, ...userData };
+    this.ngoUsersData.set(id, updatedUser);
+    return updatedUser;
+  }
+
+  async deleteNgoUser(id: number): Promise<boolean> {
+    return this.ngoUsersData.delete(id);
+  }
+
+  // NGO Campaign management methods
+  async getNgoCampaigns(): Promise<NgoCampaign[]> {
+    return Array.from(this.ngoCampaignsData.values());
+  }
+
+  async getNgoCampaign(id: number): Promise<NgoCampaign | undefined> {
+    return this.ngoCampaignsData.get(id);
+  }
+
+  async getNgoCampaignsByNgoId(ngoId: number): Promise<NgoCampaign[]> {
+    return Array.from(this.ngoCampaignsData.values()).filter(campaign => campaign.ngoId === ngoId);
+  }
+
+  async createNgoCampaign(campaign: InsertNgoCampaign): Promise<NgoCampaign> {
+    const id = this.ngoCampaignIdCounter++;
+    const newCampaign: NgoCampaign = {
+      ...campaign,
+      id,
+      slug: campaign.slug ?? null,
+      shortDescription: campaign.shortDescription ?? null,
+      description: campaign.description ?? null,
+      raisedAmount: 0,
+      galleryImages: campaign.galleryImages ?? null,
+      category: campaign.category ?? null,
+      startDate: campaign.startDate ? new Date(campaign.startDate) : null,
+      endDate: campaign.endDate ? new Date(campaign.endDate) : null,
+      beneficiaryDetails: campaign.beneficiaryDetails ?? null,
+      approvalStatus: campaign.approvalStatus ?? "pending",
+      adminRemarks: null,
+      isActive: campaign.isActive ?? true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.ngoCampaignsData.set(id, newCampaign);
+    return newCampaign;
+  }
+
+  async updateNgoCampaign(id: number, campaignData: Partial<NgoCampaign>): Promise<NgoCampaign | undefined> {
+    const campaign = this.ngoCampaignsData.get(id);
+    if (!campaign) return undefined;
+    const updatedCampaign = { ...campaign, ...campaignData, updatedAt: new Date() };
+    this.ngoCampaignsData.set(id, updatedCampaign);
+    return updatedCampaign;
+  }
+
+  async deleteNgoCampaign(id: number): Promise<boolean> {
+    return this.ngoCampaignsData.delete(id);
+  }
+
+  // NGO Donation Amount Cards management methods
+  async getNgoDonationAmountCards(ngoCampaignId: number): Promise<NgoDonationAmountCard[]> {
+    return Array.from(this.ngoDonationAmountCardsData.values()).filter(card => card.ngoCampaignId === ngoCampaignId);
+  }
+
+  async getNgoDonationAmountCard(id: number): Promise<NgoDonationAmountCard | undefined> {
+    return this.ngoDonationAmountCardsData.get(id);
+  }
+
+  async createNgoDonationAmountCard(card: InsertNgoDonationAmountCard): Promise<NgoDonationAmountCard> {
+    const id = this.ngoDonationAmountCardIdCounter++;
+    const newCard: NgoDonationAmountCard = {
+      ...card,
+      id,
+      label: card.label ?? null,
+      displayOrder: card.displayOrder ?? 0,
+      createdAt: new Date(),
+    };
+    this.ngoDonationAmountCardsData.set(id, newCard);
+    return newCard;
+  }
+
+  async updateNgoDonationAmountCard(id: number, cardData: Partial<NgoDonationAmountCard>): Promise<NgoDonationAmountCard | undefined> {
+    const card = this.ngoDonationAmountCardsData.get(id);
+    if (!card) return undefined;
+    const updatedCard = { ...card, ...cardData };
+    this.ngoDonationAmountCardsData.set(id, updatedCard);
+    return updatedCard;
+  }
+
+  async deleteNgoDonationAmountCard(id: number): Promise<boolean> {
+    return this.ngoDonationAmountCardsData.delete(id);
+  }
+
+  // Policy methods
+  async getPolicies(): Promise<Policy[]> {
+    return Array.from(this.policiesData.values())
+      .filter(p => p.isActive)
+      .sort((a, b) => (a.order || 0) - (b.order || 0));
+  }
+
+  async getPolicy(id: number): Promise<Policy | undefined> {
+    return this.policiesData.get(id);
+  }
+
+  async getPolicyBySlug(slug: string): Promise<Policy | undefined> {
+    return Array.from(this.policiesData.values()).find(p => p.slug === slug);
+  }
+
+  async createPolicy(policy: InsertPolicy): Promise<Policy> {
+    const id = this.policyIdCounter++;
+    const newPolicy: Policy = {
+      ...policy,
+      id,
+      isActive: policy.isActive ?? true,
+      order: policy.order ?? 0,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    this.policiesData.set(id, newPolicy);
+    return newPolicy;
+  }
+
+  async updatePolicy(id: number, policyData: Partial<Policy>): Promise<Policy | undefined> {
+    const policy = this.policiesData.get(id);
+    if (!policy) return undefined;
+    const updated = { ...policy, ...policyData, updatedAt: new Date() };
+    this.policiesData.set(id, updated);
+    return updated;
+  }
+
+  async deletePolicy(id: number): Promise<boolean> {
+    return this.policiesData.delete(id);
+  }
+
+  async getAllPolicies(): Promise<Policy[]> {
+    return Array.from(this.policiesData.values())
+      .sort((a, b) => (a.order || 0) - (b.order || 0));
+  }
+
+  // Policies Page Settings methods
+  async getPoliciesPage(): Promise<PoliciesPage | undefined> {
+    return this.policiesPageData;
+  }
+
+  async updatePoliciesPage(pageData: Partial<PoliciesPage>): Promise<PoliciesPage | undefined> {
+    if (!this.policiesPageData) {
+      this.policiesPageData = {
+        id: 1,
+        title: "Policies of Usage",
+        description: "Please review our policies to understand how we operate and your rights as a user.",
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+    }
+    this.policiesPageData = { ...this.policiesPageData, ...pageData, updatedAt: new Date() };
+    return this.policiesPageData;
+  }
+  
+  // About Sections methods
+  async getAboutSections(): Promise<AboutSection[]> {
+    return Array.from(this.aboutSectionsData.values())
+      .sort((a, b) => a.sectionNumber - b.sectionNumber);
+  }
+
+  async getAboutSection(id: number): Promise<AboutSection | undefined> {
+    return this.aboutSectionsData.get(id);
+  }
+
+  async createAboutSection(section: InsertAboutSection): Promise<AboutSection> {
+    const id = this.aboutSectionIdCounter++;
+    const newSection: AboutSection = { 
+      ...section, 
+      id,
+      isActive: section.isActive ?? true,
+      description: section.description ?? null,
+      imageUrl: section.imageUrl ?? null,
+      icon: section.icon ?? null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    this.aboutSectionsData.set(id, newSection);
+    return newSection;
+  }
+
+  async updateAboutSection(id: number, sectionData: Partial<AboutSection>): Promise<AboutSection | undefined> {
+    const section = this.aboutSectionsData.get(id);
+    if (!section) return undefined;
+    const updatedSection = { ...section, ...sectionData, updatedAt: new Date() };
+    this.aboutSectionsData.set(id, updatedSection);
+    return updatedSection;
+  }
+
+  async deleteAboutSection(id: number): Promise<boolean> {
+    return this.aboutSectionsData.delete(id);
+  }
+  
+  // Contact Info methods
+  async getContactInfo(): Promise<ContactInfo | undefined> {
+    return this.contactInfoData;
+  }
+
+  async updateContactInfo(infoData: Partial<ContactInfo>): Promise<ContactInfo | undefined> {
+    if (!this.contactInfoData) {
+      this.contactInfoData = {
+        id: 1,
+        locationEmbed: infoData.locationEmbed ?? null,
+        visitingHoursOffice: infoData.visitingHoursOffice ?? null,
+        visitingHoursSaturday: infoData.visitingHoursSaturday ?? null,
+        visitingHoursSunday: infoData.visitingHoursSunday ?? null,
+        visitingHoursSpecial: infoData.visitingHoursSpecial ?? null,
+        gettingHereTrain: infoData.gettingHereTrain ?? null,
+        gettingHereBus: infoData.gettingHereBus ?? null,
+        gettingHereTaxi: infoData.gettingHereTaxi ?? null,
+        gettingHereCar: infoData.gettingHereCar ?? null,
+        gettingHereAirport: infoData.gettingHereAirport ?? null,
+        guidelines: infoData.guidelines ?? null,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      return this.contactInfoData;
+    }
+    
+    this.contactInfoData = { ...this.contactInfoData, ...infoData, updatedAt: new Date() };
+    return this.contactInfoData;
   }
 }
 

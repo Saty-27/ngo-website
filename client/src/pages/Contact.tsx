@@ -1,8 +1,31 @@
 import { Helmet } from 'react-helmet';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
+import ContactSection from '@/components/home/ContactSection';
+import { useQuery } from '@tanstack/react-query';
+import { type ContactInfo } from '@shared/schema';
 
 const Contact = () => {
+  const { data: contactInfo } = useQuery<ContactInfo>({
+    queryKey: ['/api/contact-info'],
+  });
+
+  // Fallback to static data if no data
+  const locationEmbed = contactInfo?.locationEmbed || "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3771.0!2d72.8777!3d19.0760!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3be7b63aceef0c47%3A0x2aa80cf2287dfa3b!2sMumbai%2C%20Maharashtra!5e0!3m2!1sen!2sin!4v1626873550656!5m2!1sen!2sin";
+  const visitingHoursOffice = contactInfo?.visitingHoursOffice || "9:00 AM to 6:00 PM";
+  const visitingHoursSaturday = contactInfo?.visitingHoursSaturday || "10:00 AM to 4:00 PM";
+  const visitingHoursSunday = contactInfo?.visitingHoursSunday || "Closed";
+  const visitingHoursSpecial = contactInfo?.visitingHoursSpecial || "Special hours during events";
+  const gettingHereTrain = contactInfo?.gettingHereTrain || "Nearest station - Vile Parle (Western Line)";
+  const gettingHereBus = contactInfo?.gettingHereBus || "Multiple BEST bus routes available";
+  const gettingHereTaxi = contactInfo?.gettingHereTaxi || "Easily accessible from anywhere in Mumbai";
+  const gettingHereCar = contactInfo?.gettingHereCar || "Limited parking available";
+  const gettingHereAirport = contactInfo?.gettingHereAirport || "15 minutes from domestic terminal";
+  const guidelines = contactInfo?.guidelines || "Visitors are welcome during office hours\nPlease carry a valid ID for registration\nPhotography allowed in public areas\nMaintain decorum on premises\nFor group visits, please contact our office in advance";
+
+  // Split guidelines into list
+  const guidelinesList = guidelines.split('\n').filter((line: string) => line.trim());
+
   return (
     <>
       <Helmet>
@@ -38,15 +61,19 @@ const Contact = () => {
               </h2>
               
               <div className="rounded-xl overflow-hidden shadow-lg h-[400px]">
-                <iframe 
-                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3771.0!2d72.8777!3d19.0760!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3be7b63aceef0c47%3A0x2aa80cf2287dfa3b!2sMumbai%2C%20Maharashtra!5e0!3m2!1sen!2sin!4v1626873550656!5m2!1sen!2sin" 
-                  width="100%" 
-                  height="100%" 
-                  style={{ border: 0 }} 
-                  allowFullScreen 
-                  loading="lazy"
-                  title="Gauranitai Foundation Temple Location"
-                ></iframe>
+                {locationEmbed.includes('iframe') ? (
+                  <div dangerouslySetInnerHTML={{ __html: locationEmbed }} />
+                ) : (
+                  <iframe 
+                    src={locationEmbed} 
+                    width="100%" 
+                    height="100%" 
+                    style={{ border: 0 }} 
+                    allowFullScreen 
+                    loading="lazy"
+                    title="Gauranitai Foundation Temple Location"
+                  ></iframe>
+                )}
               </div>
             </div>
           </div>
@@ -67,11 +94,10 @@ const Contact = () => {
                   </div>
                   <h3 className="font-poppins font-semibold text-xl text-primary mb-2 text-center">Visiting Hours</h3>
                   <ul className="space-y-2 font-opensans">
-                    <li><strong>Office Hours:</strong> 9:00 AM to 6:00 PM</li>
-                    <li><strong>Monday - Friday:</strong> 9:00 AM to 6:00 PM</li>
-                    <li><strong>Saturday:</strong> 10:00 AM to 4:00 PM</li>
-                    <li><strong>Sunday:</strong> Closed</li>
-                    <li className="text-sm italic">Special hours during events</li>
+                    {visitingHoursOffice && <li><strong>Office Hours:</strong> {visitingHoursOffice}</li>}
+                    {visitingHoursSaturday && <li><strong>Saturday:</strong> {visitingHoursSaturday}</li>}
+                    {visitingHoursSunday && <li><strong>Sunday:</strong> {visitingHoursSunday}</li>}
+                    {visitingHoursSpecial && <li className="text-sm italic">{visitingHoursSpecial}</li>}
                   </ul>
                 </div>
                 
@@ -81,11 +107,11 @@ const Contact = () => {
                   </div>
                   <h3 className="font-poppins font-semibold text-xl text-primary mb-2 text-center">Getting Here</h3>
                   <ul className="space-y-2 font-opensans">
-                    <li><strong>By Train:</strong> Nearest station - Vile Parle (Western Line)</li>
-                    <li><strong>By Bus:</strong> Multiple BEST bus routes available</li>
-                    <li><strong>By Taxi/Auto:</strong> Easily accessible from anywhere in Mumbai</li>
-                    <li><strong>By Car:</strong> Limited parking available</li>
-                    <li><strong>From Airport:</strong> 15 minutes from domestic terminal</li>
+                    {gettingHereTrain && <li><strong>By Train:</strong> {gettingHereTrain}</li>}
+                    {gettingHereBus && <li><strong>By Bus:</strong> {gettingHereBus}</li>}
+                    {gettingHereTaxi && <li><strong>By Taxi/Auto:</strong> {gettingHereTaxi}</li>}
+                    {gettingHereCar && <li><strong>By Car:</strong> {gettingHereCar}</li>}
+                    {gettingHereAirport && <li><strong>From Airport:</strong> {gettingHereAirport}</li>}
                   </ul>
                 </div>
                 
@@ -95,11 +121,9 @@ const Contact = () => {
                   </div>
                   <h3 className="font-poppins font-semibold text-xl text-primary mb-2 text-center">Guidelines</h3>
                   <ul className="space-y-2 font-opensans">
-                    <li>Visitors are welcome during office hours</li>
-                    <li>Please carry a valid ID for registration</li>
-                    <li>Photography allowed in public areas</li>
-                    <li>Maintain decorum on premises</li>
-                    <li>For group visits, please contact our office in advance</li>
+                    {guidelinesList.map((line: string, index: number) => (
+                      <li key={index}>{line}</li>
+                    ))}
                   </ul>
                 </div>
               </div>
@@ -108,6 +132,7 @@ const Contact = () => {
         </section>
       </main>
       
+      <ContactSection />
       <Footer />
     </>
   );

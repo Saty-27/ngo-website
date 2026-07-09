@@ -94,6 +94,11 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
+                <Link href="/about" className="font-opensans text-[#C9C2E8] hover:text-[#FF9933] transition-colors">
+                  About
+                </Link>
+              </li>
+              <li>
                 <Link href="/donate" className="font-opensans text-[#C9C2E8] hover:text-[#FF9933] transition-colors">
                   Donate
                 </Link>

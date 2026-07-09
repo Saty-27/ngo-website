@@ -18,7 +18,11 @@ import {
   Menu,
   X,
   Sparkles,
-  Download
+  Download,
+  Building2,
+  ClipboardList,
+  Info,
+  MapPin
 } from "lucide-react";
 
 const Sidebar = () => {
@@ -39,12 +43,16 @@ const Sidebar = () => {
 
   const menuItems = [
     { href: "/admin", icon: LayoutDashboard, label: "Dashboard", tourId: "dashboard-nav" },
+    { href: "/admin/ngos", icon: Building2, label: "NGO Management", tourId: "ngo-nav" },
+    { href: "/admin/ngo-campaigns", icon: ClipboardList, label: "NGO Campaigns", tourId: "ngo-campaigns-nav" },
     { href: "/admin/banners", icon: Images, label: "Banners", tourId: "content-nav" },
     { href: "/admin/campaigns", icon: Calendar, label: "Campaigns", tourId: "campaigns-nav" },
     { href: "/admin/gallery", icon: Images, label: "Gallery", tourId: "content-nav" },
     { href: "/admin/videos", icon: Film, label: "Videos", tourId: "content-nav" },
     { href: "/admin/live-videos", icon: Tv, label: "Live Videos", tourId: "content-nav" },
     { href: "/admin/process-section", icon: Sparkles, label: "Process Section", tourId: "content-nav" },
+    { href: "/admin/about-sections", icon: Info, label: "About Sections", tourId: "content-nav" },
+    { href: "/admin/contact-info", icon: MapPin, label: "Contact Info", tourId: "content-nav" },
     { href: "/admin/donations", icon: DollarSign, label: "Donations", tourId: "donations-nav" },
     { href: "/admin/donations-export", icon: Download, label: "Export Donations", tourId: "donations-nav" },
     { href: "/admin/donation-categories", icon: Target, label: "Donation Categories", tourId: "categories-nav" },

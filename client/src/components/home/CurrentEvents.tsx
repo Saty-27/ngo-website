@@ -51,9 +51,9 @@ const CurrentCampaigns = () => {
         </div>
 
         {/* Campaigns Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-7xl mx-auto">
           {campaigns
-            .slice(0, 2)
+            .slice(0, 3)
             .map((campaign) => {
               const percent = campaign.goalAmount 
                 ? Math.min(Math.round((campaign.totalRaised / Number(campaign.goalAmount)) * 100), 100)

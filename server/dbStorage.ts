@@ -1,10 +1,12 @@
 // @ts-nocheck
 import { eq, and, desc } from "drizzle-orm";
 import { db } from "./db";
-import { 
+import {
   users, banners, quotes, donationCategories, donationCards, eventDonationCards, bankDetails, eventBankDetails, categoryBankDetails, events, gallery, videos, liveVideos,
   testimonials, contactMessages, socialLinks, donations, subscriptions,
   stats, schedules, blogPosts, processSections, footerSettings, policies, policiesPage, campaigns, donationAmountCards, receiptSettings,
+  ngos, ngoUsers, ngoCampaigns, ngoDonationAmountCards,
+  aboutSections, contactInfo,
   type User, type InsertUser, type Banner, type InsertBanner,
   type Quote, type InsertQuote, type DonationCategory, type InsertDonationCategory,
   type DonationCard, type InsertDonationCard, type EventDonationCard, type InsertEventDonationCard,
@@ -16,7 +18,13 @@ import {
   type Stat, type InsertStat, type Schedule, type InsertSchedule,
   type BlogPost, type InsertBlogPost, type ProcessSection, type InsertProcessSection, type FooterSettings, type InsertFooterSettings, type Policy, type InsertPolicy, type PoliciesPage, type InsertPoliciesPage,
   type Campaign, type InsertCampaign, type DonationAmountCard, type InsertDonationAmountCard,
-  type ReceiptSettings, type InsertReceiptSettings
+  type ReceiptSettings, type InsertReceiptSettings,
+  type Ngo, type InsertNgo,
+  type NgoUser, type InsertNgoUser,
+  type NgoCampaign, type InsertNgoCampaign,
+  type NgoDonationAmountCard, type InsertNgoDonationAmountCard,
+  type AboutSection, type InsertAboutSection,
+  type ContactInfo, type InsertContactInfo
 } from "@shared/schema";
 import type { IStorage } from "./storage";
 
@@ -560,6 +568,8 @@ export class DatabaseStorage implements IStorage {
         eventTitle: events.title,
         campaignTitle: campaigns.title,
         campaignId: donations.campaignId,
+        campaignNgoId: campaigns.ngoId,
+        ngoName: ngos.name,
         paymentProofFile: donations.paymentProofFile,
         rejectionReason: donations.rejectionReason,
         invoiceNumber: donations.invoiceNumber,
@@ -570,6 +580,7 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(donationCategories, eq(donations.categoryId, donationCategories.id))
       .leftJoin(events, eq(donations.eventId, events.id))
       .leftJoin(campaigns, eq(donations.campaignId, campaigns.id))
+      .leftJoin(ngos, eq(campaigns.ngoId, ngos.id))
       .orderBy(desc(donations.createdAt));
   }
 
@@ -891,5 +902,160 @@ export class DatabaseStorage implements IStorage {
       .where(eq(receiptSettings.id, current.id))
       .returning();
     return updated;
+  }
+
+  // NGO management
+  async getNgos(): Promise<Ngo[]> {
+    return await db.select().from(ngos);
+  }
+
+  async getNgo(id: number): Promise<Ngo | undefined> {
+    const [ngo] = await db.select().from(ngos).where(eq(ngos.id, id));
+    return ngo;
+  }
+
+  async getNgoByEmail(email: string): Promise<Ngo | undefined> {
+    const [ngo] = await db.select().from(ngos).where(eq(ngos.email, email));
+    return ngo;
+  }
+
+  async createNgo(ngo: InsertNgo): Promise<Ngo> {
+    const [newNgo] = await db.insert(ngos).values(ngo).returning();
+    return newNgo;
+  }
+
+  async updateNgo(id: number, ngoData: Partial<Ngo>): Promise<Ngo | undefined> {
+    const [ngo] = await db.update(ngos).set({ ...ngoData, updatedAt: new Date() }).where(eq(ngos.id, id)).returning();
+    return ngo;
+  }
+
+  async deleteNgo(id: number): Promise<boolean> {
+    const result = await db.delete(ngos).where(eq(ngos.id, id));
+    return result.rowCount > 0;
+  }
+
+  // NGO User management
+  async getNgoUsers(): Promise<NgoUser[]> {
+    return await db.select().from(ngoUsers);
+  }
+
+  async getNgoUser(id: number): Promise<NgoUser | undefined> {
+    const [user] = await db.select().from(ngoUsers).where(eq(ngoUsers.id, id));
+    return user;
+  }
+
+  async getNgoUserByEmail(email: string): Promise<NgoUser | undefined> {
+    const [user] = await db.select().from(ngoUsers).where(eq(ngoUsers.email, email));
+    return user;
+  }
+
+  async createNgoUser(user: InsertNgoUser): Promise<NgoUser> {
+    const [newUser] = await db.insert(ngoUsers).values(user).returning();
+    return newUser;
+  }
+
+  async updateNgoUser(id: number, userData: Partial<NgoUser>): Promise<NgoUser | undefined> {
+    const [user] = await db.update(ngoUsers).set(userData).where(eq(ngoUsers.id, id)).returning();
+    return user;
+  }
+
+  async deleteNgoUser(id: number): Promise<boolean> {
+    const result = await db.delete(ngoUsers).where(eq(ngoUsers.id, id));
+    return result.rowCount > 0;
+  }
+
+  // NGO Campaign management
+  async getNgoCampaigns(): Promise<NgoCampaign[]> {
+    return await db.select().from(ngoCampaigns);
+  }
+
+  async getNgoCampaign(id: number): Promise<NgoCampaign | undefined> {
+    const [campaign] = await db.select().from(ngoCampaigns).where(eq(ngoCampaigns.id, id));
+    return campaign;
+  }
+
+  async getNgoCampaignsByNgoId(ngoId: number): Promise<NgoCampaign[]> {
+    return await db.select().from(ngoCampaigns).where(eq(ngoCampaigns.ngoId, ngoId));
+  }
+
+  async createNgoCampaign(campaign: InsertNgoCampaign): Promise<NgoCampaign> {
+    const [newCampaign] = await db.insert(ngoCampaigns).values(campaign).returning();
+    return newCampaign;
+  }
+
+  async updateNgoCampaign(id: number, campaignData: Partial<NgoCampaign>): Promise<NgoCampaign | undefined> {
+    const [campaign] = await db.update(ngoCampaigns).set({ ...campaignData, updatedAt: new Date() }).where(eq(ngoCampaigns.id, id)).returning();
+    return campaign;
+  }
+
+  async deleteNgoCampaign(id: number): Promise<boolean> {
+    const result = await db.delete(ngoCampaigns).where(eq(ngoCampaigns.id, id));
+    return result.rowCount > 0;
+  }
+
+  // NGO Donation Amount Cards management
+  async getNgoDonationAmountCards(ngoCampaignId: number): Promise<NgoDonationAmountCard[]> {
+    return await db.select().from(ngoDonationAmountCards).where(eq(ngoDonationAmountCards.ngoCampaignId, ngoCampaignId));
+  }
+
+  async getNgoDonationAmountCard(id: number): Promise<NgoDonationAmountCard | undefined> {
+    const [card] = await db.select().from(ngoDonationAmountCards).where(eq(ngoDonationAmountCards.id, id));
+    return card;
+  }
+
+  async createNgoDonationAmountCard(card: InsertNgoDonationAmountCard): Promise<NgoDonationAmountCard> {
+    const [newCard] = await db.insert(ngoDonationAmountCards).values(card).returning();
+    return newCard;
+  }
+
+  async updateNgoDonationAmountCard(id: number, cardData: Partial<NgoDonationAmountCard>): Promise<NgoDonationAmountCard | undefined> {
+    const [card] = await db.update(ngoDonationAmountCards).set(cardData).where(eq(ngoDonationAmountCards.id, id)).returning();
+    return card;
+  }
+
+  async deleteNgoDonationAmountCard(id: number): Promise<boolean> {
+    const result = await db.delete(ngoDonationAmountCards).where(eq(ngoDonationAmountCards.id, id));
+    return result.rowCount > 0;
+  }
+  
+  // About Sections operations
+  async getAboutSections(): Promise<AboutSection[]> {
+    return await db.select().from(aboutSections).orderBy(aboutSections.sectionNumber);
+  }
+
+  async getAboutSection(id: number): Promise<AboutSection | undefined> {
+    const [section] = await db.select().from(aboutSections).where(eq(aboutSections.id, id));
+    return section;
+  }
+
+  async createAboutSection(section: InsertAboutSection): Promise<AboutSection> {
+    const [newSection] = await db.insert(aboutSections).values(section).returning();
+    return newSection;
+  }
+
+  async updateAboutSection(id: number, sectionData: Partial<AboutSection>): Promise<AboutSection | undefined> {
+    const [section] = await db.update(aboutSections).set({ ...sectionData, updatedAt: new Date() }).where(eq(aboutSections.id, id)).returning();
+    return section;
+  }
+
+  async deleteAboutSection(id: number): Promise<boolean> {
+    const result = await db.delete(aboutSections).where(eq(aboutSections.id, id));
+    return result.rowCount > 0;
+  }
+  
+  // Contact Info operations
+  async getContactInfo(): Promise<ContactInfo | undefined> {
+    const [info] = await db.select().from(contactInfo).limit(1);
+    return info;
+  }
+
+  async updateContactInfo(infoData: Partial<ContactInfo>): Promise<ContactInfo | undefined> {
+    const existing = await this.getContactInfo();
+    if (!existing) {
+      const [newInfo] = await db.insert(contactInfo).values(infoData as InsertContactInfo).returning();
+      return newInfo;
+    }
+    const [updatedInfo] = await db.update(contactInfo).set({ ...infoData, updatedAt: new Date() }).where(eq(contactInfo.id, existing.id)).returning();
+    return updatedInfo;
   }
 }

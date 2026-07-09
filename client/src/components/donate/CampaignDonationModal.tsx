@@ -223,11 +223,33 @@ export default function CampaignDonationModal({ isOpen, onClose, campaign, cards
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent className="sm:max-w-lg w-full max-h-[90vh] overflow-y-auto bg-white p-6 rounded-xl border border-gray-150">
         <DialogHeader className="border-b pb-4 mb-4">
+          {/* Campaign Image Banner */}
+          {campaign.coverImage && (
+            <div className="-mx-6 -mt-6 mb-4 h-32 overflow-hidden rounded-t-xl relative">
+              <img
+                src={campaign.coverImage}
+                alt={campaign.title}
+                className="w-full h-full object-cover"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+              <div className="absolute bottom-2 left-4">
+                <span className="text-white text-xs font-semibold bg-secondary/90 px-2 py-0.5 rounded-full uppercase">
+                  {campaign.status}
+                </span>
+              </div>
+            </div>
+          )}
           <DialogTitle className="text-2xl font-poppins font-bold text-primary">
             {getStepTitle()}
           </DialogTitle>
           <DialogDescription className="text-sm font-opensans text-gray-500">
             Campaign: <span className="font-semibold text-secondary">{campaign.title}</span>
+            {campaign.goalAmount && (
+              <span className="ml-2 text-xs text-gray-400">
+                · Goal: ₹{Number(campaign.goalAmount).toLocaleString()}
+              </span>
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -314,16 +336,27 @@ export default function CampaignDonationModal({ isOpen, onClose, campaign, cards
                       setSelectedAmount(card.amount);
                       setAmountType('preset');
                     }}
-                    className={`border-2 rounded-xl p-4 cursor-pointer transition-all flex flex-col items-center justify-center text-center ${
+                    className={`border-2 rounded-xl p-4 cursor-pointer transition-all flex flex-col items-start justify-between gap-2 ${
                       amountType === 'preset' && selectedAmount === card.amount
-                        ? 'border-secondary bg-orange-50/50'
-                        : 'border-gray-200 hover:border-primary'
+                        ? 'border-secondary bg-orange-50 shadow-md'
+                        : 'border-gray-200 hover:border-primary hover:shadow-sm'
                     }`}
                   >
-                    <span className="text-xl font-poppins font-bold text-primary">₹{card.amount}</span>
-                    {card.label && (
-                      <span className="text-xs text-gray-500 font-opensans mt-1 line-clamp-1">{card.label}</span>
-                    )}
+                    <div className="w-full">
+                      <span className="text-xl font-poppins font-bold text-primary block">₹{card.amount.toLocaleString()}</span>
+                      {card.label && (
+                        <span className="text-xs text-gray-500 font-opensans mt-0.5 block leading-snug">{card.label}</span>
+                      )}
+                    </div>
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 self-end ${
+                      amountType === 'preset' && selectedAmount === card.amount
+                        ? 'border-secondary bg-secondary'
+                        : 'border-gray-300'
+                    }`}>
+                      {amountType === 'preset' && selectedAmount === card.amount && (
+                        <div className="w-2 h-2 rounded-full bg-white" />
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

@@ -475,6 +475,7 @@ const DonationCategoriesPage = () => {
       accountNumber: '',
       ifscCode: '',
       swiftCode: '',
+      upiId: '',
       qrCodeUrl: '',
     });
   };

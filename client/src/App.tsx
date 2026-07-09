@@ -5,6 +5,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
+import About from "@/pages/About";
 import Campaigns from "@/pages/Campaigns";
 import CampaignDetail from "@/pages/CampaignDetail";
 
@@ -26,6 +27,7 @@ import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import Profile from "@/pages/Profile";
 import AdminRoute from "@/components/auth/AdminRoute";
+import NgoRoute from "@/components/auth/NgoRoute";
 
 // Admin pages
 import AdminDashboard from "@/pages/admin/Dashboard";
@@ -61,12 +63,28 @@ import AdminTransparency from "@/pages/admin/Transparency";
 import AdminFAQ from "@/pages/admin/FAQ";
 import AdminRecurringGiving from "@/pages/admin/RecurringGiving";
 import AdminStats from "@/pages/admin/Stats";
+import AdminAboutSections from "@/pages/admin/AboutSectionManagement";
+import AdminContactInfo from "@/pages/admin/ContactInfoManagement";
+
+// NGO pages
+import NgoRegister from "@/pages/ngo/Register";
+import NgoLogin from "@/pages/ngo/Login";
+import NgoDashboard from "@/pages/ngo/Dashboard";
+import NgoCampaigns from "@/pages/ngo/Campaigns";
+import NgoCreateCampaign from "@/pages/ngo/CreateCampaign";
+import NgoProfile from "@/pages/ngo/Profile";
+import NgoDonations from "@/pages/ngo/Donations";
+
+// Admin NGO pages
+import AdminNgoManagement from "@/pages/admin/NgoManagement";
+import AdminNgoCampaignApproval from "@/pages/admin/NgoCampaignApproval";
 
 function Router() {
   return (
     <Switch>
       {/* Main routes */}
       <Route path="/" component={Home} />
+      <Route path="/about" component={About} />
       <Route path="/campaigns" component={Campaigns} />
       <Route path="/campaigns/:id" component={CampaignDetail} />
 
@@ -95,11 +113,73 @@ function Router() {
       <Route path="/register" component={Register} />
       <Route path="/profile" component={Profile} />
       
+      {/* NGO Public Routes */}
+      <Route path="/ngo/register" component={NgoRegister} />
+      <Route path="/ngo/login" component={NgoLogin} />
+      
+      {/* NGO Protected Routes */}
+      <Route path="/ngo/dashboard">
+        {() => (
+          <NgoRoute>
+            <NgoDashboard />
+          </NgoRoute>
+        )}
+      </Route>
+      <Route path="/ngo/campaigns">
+        {() => (
+          <NgoRoute>
+            <NgoCampaigns />
+          </NgoRoute>
+        )}
+      </Route>
+      <Route path="/ngo/campaigns/create">
+        {() => (
+          <NgoRoute>
+            <NgoCreateCampaign />
+          </NgoRoute>
+        )}
+      </Route>
+      <Route path="/ngo/campaigns/:id/edit">
+        {() => (
+          <NgoRoute>
+            <NgoCreateCampaign />
+          </NgoRoute>
+        )}
+      </Route>
+      <Route path="/ngo/profile">
+        {() => (
+          <NgoRoute>
+            <NgoProfile />
+          </NgoRoute>
+        )}
+      </Route>
+      <Route path="/ngo/donations">
+        {() => (
+          <NgoRoute>
+            <NgoDonations />
+          </NgoRoute>
+        )}
+      </Route>
+      
       {/* Admin routes - protected with AdminRoute */}
       <Route path="/admin">
         {() => (
           <AdminRoute>
             <AdminDashboard />
+          </AdminRoute>
+        )}
+      </Route>
+      <Route path="/admin/ngos">
+        {() => (
+          <AdminRoute>
+            <AdminNgoManagement />
+          </AdminRoute>
+        )}
+      </Route>
+      <Route path="/admin/ngo-campaigns">
+        {() => (
+          <AdminRoute>
+            <AdminNgoCampaignApproval />
           </AdminRoute>
         )}
       </Route>
@@ -289,6 +369,20 @@ function Router() {
         {() => (
           <AdminRoute>
             <PoliciesPageSettings />
+          </AdminRoute>
+        )}
+      </Route>
+      <Route path="/admin/about-sections">
+        {() => (
+          <AdminRoute>
+            <AdminAboutSections />
+          </AdminRoute>
+        )}
+      </Route>
+      <Route path="/admin/contact-info">
+        {() => (
+          <AdminRoute>
+            <AdminContactInfo />
           </AdminRoute>
         )}
       </Route>
